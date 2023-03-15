@@ -11,7 +11,7 @@ from collections import namedtuple
 import brian2 as br2
 from ._auxiliar import time_report, BaseClass
 
-__all__ = ['basics_setup', 'membranetuple']
+__all__ = ['basics_setup', 'membranetuple', 'group_sets']
 
 
 group_kinds = {

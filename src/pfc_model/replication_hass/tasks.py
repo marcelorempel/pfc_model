@@ -3,7 +3,7 @@ import os
 from ._figures import *
 from ..cortex_setup import *
 from .._auxiliar import *
-from ..basics_setup import group_sets, membpar_names
+from ..basics_setup import *
 from ..analyses_tools import*
 
 
@@ -249,7 +249,7 @@ def task4(simulation_dir, seed=None):
 @time_report()
 def task5(simulation_dir, seed=None):
     basics_scales = {
-        'membr_param_std': [(dict(param=membpar_names, group=group_sets['ALL']), 0.8)]
+        'membr_param_std': [(dict(param=membranetuple._fields, group=group_sets['ALL']), 0.8)]
         }
 
     Ncells=1000
@@ -359,7 +359,7 @@ def task6(simulation_dir, seed=None):
             
             basics_scales = {
                 'membr_param_std': [
-                    (dict(param=membpar_names,  group=group_sets['ALL']), Membr_std_list[std])
+                    (dict(param=membranetuple._fields,  group=group_sets['ALL']), Membr_std_list[std])
                     ]
                 }
 
