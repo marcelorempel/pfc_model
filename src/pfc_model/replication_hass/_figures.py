@@ -7,7 +7,7 @@ import os
 __all__ = ['fig01', 'fig02', 'fig03', 'fig04', 'fig05',
            'fig06', 'fig07', 'fig08', 'fig09', 'fig10',
            'fig11', 'fig12', 'fig13', 'fig14', 'fig15',
-           'fig06', 'fig017']
+           'fig16', 'fig17']
 
 
 def _ISIfigures(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, file):
