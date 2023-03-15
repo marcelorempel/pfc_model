@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from numpy.matlib import repmat
 from collections import namedtuple
 import brian2 as br2
-from ._auxiliar import time_report, BaseClass
+from _auxiliar import time_report, BaseClass
 
 __all__ = ['basics_setup', 'membranetuple']
 
