@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.ndimage import gaussian_filter1d as gf1d
-from .analyses_tools import *
+from ..analyses_tools import *
 import os
 
 __all__ = ['fig01', 'fig02', 'fig03', 'fig04', 'fig05',
