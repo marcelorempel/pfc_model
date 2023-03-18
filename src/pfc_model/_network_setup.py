@@ -1,14 +1,14 @@
-from .basics_setup import *
 import numpy as np
 import xarray as xr
 from dataclasses import dataclass
 from warnings import filterwarnings
-import os, shutil, json
+import os
+import shutil
+import json
 from importlib import import_module
 from ._auxiliar import time_report, BaseClass
-# import network_auxiliar as netx
 from ._network_auxiliar import *
-from scipy.optimize import fmin
+from ._basics_setup import *
 
 __all__ = ['network_setup', 'Network']
 
@@ -24,7 +24,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                         alternative_pcells, basics_disp)
     
     index_stripes = np.arange(n_stripes).astype(int)
-    index_cells_total = np.arange(basics.struct.Ncells_total).astype(int)
+    index_cells_total = np.arange(basics.struct.n_cells_total).astype(int)
     
     syn_pairs = xr.DataArray(
         np.asarray([[],[]]), coords=[['target', 'source'],[]], 
@@ -47,9 +47,9 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
     
     
     membr_params = xr.DataArray(
-        np.zeros((len(basics.membr.names), basics.struct.Ncells_total)), 
+        np.zeros((len(basics.membr.names), basics.struct.n_cells_total)), 
         coords=(basics.membr.names, index_cells_total), 
-        dims=['param', 'cell_index'])
+        dims=['par', 'cell_index'])
     
     i_refractory = xr.DataArray(
         np.zeros(len(index_cells_total)), 
@@ -58,7 +58,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
     
     # ------- Set neuron parameters and most synaptic connections -------------
  
-    group_distr = [[[] for j in range(basics.struct.groups.N)] 
+    group_distr = [[[] for j in range(basics.struct.groups.n)] 
                    for i in range (n_stripes)]
 
     group_names = basics.struct.groups.names
@@ -67,7 +67,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
     n_cell_current = 0
     for stripe in index_stripes:   
         for group in group_names:
-            Ncell_new = int(basics.struct.Ncells_per_group.loc[group].values)
+            Ncell_new = int(basics.struct.n_cells_per_group.loc[group].values)
             set_current = np.arange(Ncell_new).astype(int)+n_cell_current
             n_cell_current += Ncell_new
           
@@ -86,9 +86,9 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                 param_transf = xr.DataArray(
                     param_transf, 
                     coords=[basics.membr.names, set_new], 
-                    dims=['param', 'cell_index'])
+                    dims=['par', 'cell_index'])
                 
-                multi_lambda_ = basics.membr.k.loc[dict(group=group)]
+                multi_lambda_ = basics.membr.lambd.loc[dict(group=group)]
                 multi_minparam_inv = basics.membr.min.loc[dict(group=group)]
                 
                 membr_params, set_new = set_membr_params(
@@ -114,7 +114,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
         
         for group in group_names:
             set_current = group_distr[stripe][group_names.index(group)]  
-            pcon = float(basics.struct.conn.pCon.loc[group, group].values)
+            pcon = float(basics.struct.conn.pcon.loc[group, group].values)
             if len(set_current) > 0:
                 if basics.struct.conn.cluster.loc[group, group] == 1:
                     target_source, syn_idc = setcon_commneigh(
@@ -136,7 +136,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                     [name for name in group_names if name != group_tgt]):
                 set_current_source = (group_distr[stripe]
                                       [group_names.index(group_src)])
-                pcon = float(basics.struct.conn.pCon
+                pcon = float(basics.struct.conn.pcon
                              .loc[group_tgt, group_src].values)
                 
                 if len(set_current_target)*len(set_current_source) > 0:
@@ -160,7 +160,7 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
             
             group_tgt, group_src = inter_dict['pair']
             pcon  = float(
-                basics.struct.conn.pCon.loc[group_tgt, group_src].values)
+                basics.struct.conn.pcon.loc[group_tgt, group_src].values)
             
             for stripe in range(n_stripes):             
                 for conn  in range(len(inter_dict['connections'])):
@@ -196,22 +196,22 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
     syn_params['channel'] = xr.DataArray(
         syn_params['channel'], 
         coords=[syn_channel, np.arange(syn_pairs.shape[1])], 
-        dims=['param', 'syn_index'])
+        dims=['par', 'syn_index'])
     
     syn_params['spiking'] = xr.DataArray(
         syn_params['spiking'], 
         coords=[syn_spike_params,  np.arange(syn_pairs.shape[1])], 
-        dims=['param', 'syn_index'])
+        dims=['par', 'syn_index'])
     
     syn_params['STSP_params'] = xr.DataArray(
         syn_params['STSP_params'], 
         coords=[syn_STSP_params,  np.arange(syn_pairs.shape[1])], 
-        dims=['param', 'syn_index'])
+        dims=['par', 'syn_index'])
     
     syn_params['delay'] = xr.DataArray(
         syn_params['delay'], 
         coords=[syn_delay, np.arange(syn_pairs.shape[1])], 
-        dims=['param', 'syn_index'])
+        dims=['par', 'syn_index'])
     
     network = Network(membr_params, i_refractory, syn_params,
                       syn_pairs.astype(int), group_distr, seed, basics)
@@ -230,7 +230,7 @@ class Network(BaseClass):
     
     def rheobase(self, neuron_idcs=None):
         g_L, V_T, E_L, delta_T = self.membr_params.loc[
-            dict(param=['g_L', 'V_T', 'E_L', 'delta_T'])
+            dict(par=['g_L', 'V_T', 'E_L', 'delta_T'])
             ]
         i_rheo =  self.basics.equations.rheobase(g_L, V_T, E_L, delta_T)
         
@@ -265,8 +265,8 @@ class Network(BaseClass):
             f.write(group_distr)
             
         with open(os.path.join(path,"input.txt"), 'w') as f:
-            print(self.basics.struct.Ncells_prompt, 
-                  self.basics.struct.stripes.N, sep='\n', end='', file=f)
+            print(self.basics.struct.n_cells_prompt, 
+                  self.basics.struct.stripes.n, sep='\n', end='', file=f)
         shutil.copyfile('basics_setup.py', 
                         os.path.join(path,'basics_setup.py'))
         

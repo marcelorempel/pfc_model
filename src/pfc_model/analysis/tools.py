@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
-import numpy as np, pandas as pd, brian2 as br2
-from ._auxiliar import time_report
+import numpy as np
+import pandas as pd
+import brian2 as br2
 from scipy.stats import ttest_ind as ttest
 from scipy.stats import mannwhitneyu as mwtest
 from scipy.stats import chi2_contingency as chi2
@@ -8,18 +9,21 @@ from collections import namedtuple
 from scipy.ndimage import gaussian_filter1d as gf1d
 from hmmlearn import hmm
 from scipy.signal import hilbert, butter, lfilter, periodogram
+from .._auxiliar import time_report
 
-__all__= ['raster_plot_simple', 'raster_plot', 'get_V_stats', 
-         'get_correlations', 'get_correlations_from_spike_trains',
-         'ISIcorrelations', 'show_correlations', 'get_LFP', 'get_LFP_SPD',
-         'get_LFP_SPD_from_Itotarray', 'get_ISI_stats',
-         'get_ISI_stats_from_spike_trains', 'ISIstats', 
-         'comp_membrparam_rategroup', 'contingency', 'comp_synparam_rategroup',
-         'get_spiking', 'get_membr_params', 'get_hidden_UD', 
-         'get_UD_plots', 'SE_signal', 'PLV_signal_filtered',
-         'binned_spiking', 'spike_stats', 'Chi2_synchrony',
-         'get_updown_intervals', 'set_updown_time', 'separateUD',
-         ]
+
+__all__= [
+    'raster_plot_simple', 'raster_plot', 'get_V_stats', 'get_correlations', 
+    'get_correlations_from_spike_trains', 'ISIcorrelations', 
+    'show_correlations', 'get_LFP', 'get_LFP_SPD',
+    'get_LFP_SPD_from_Itotarray', 'get_ISI_stats',
+    'get_ISI_stats_from_spike_trains', 'ISIstats', 'comp_membrparam_rategroup', 
+    'contingency', 'comp_synparam_rategroup', 'get_spiking', 
+    'get_membr_params', 'get_hidden_UD', 'get_UD_plots', 'SE_signal', 
+    'PLV_signal_filtered', 'binned_spiking', 'spike_stats', 'Chi2_synchrony',
+    'get_updown_intervals', 'set_updown_time', 'separateUD', 'w_null', 
+    'w_null_boundaries',
+    ]
 
 def raster_plot_simple(cortex, xlim=None, figsize=(18,10), s=3,
                        fontsize=24, labelsize=20, savefig=None, show=True):
@@ -88,7 +92,7 @@ def raster_plot(cortex, xlim=None, figsize=(18,10), s=5, layerpadding=15,
     
     plt.tick_params(labelsize=labelsize)
 
-    yticks_space = cortex.network.basics.struct.Ncells//100 * 20
+    yticks_space = cortex.network.basics.struct.n_cells//100 * 20
     yticks = np.arange(5*yticks_space + 1)
     ytickspadding = yticks.copy()
     ytickspadding[yticks > division_idc] = (
@@ -143,7 +147,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
     if neuron_idcs is not None:
         V = V[neuron_idcs]
     else:
-        neuron_idcs = np.arange(cortex.neurons.N)
+        neuron_idcs = np.arange(cortex.neurons.n)
     
     if tlim is not None:
         t0,t1=tlim
@@ -162,7 +166,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
     for i in range(V.shape[0]):
         Varr = V[i]
         V_T = cortex.network.membr_params.loc[
-            dict(param='V_T', cell_index=neuron_idcs[i])
+            dict(par='V_T', cell_index=neuron_idcs[i])
             ].values
         V_extracted = extract_spikes(Varr, V_T)
         
@@ -216,7 +220,7 @@ def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0,
     
     def get_binned_spiking_trains(cortex, idcs, tlim, delta_t):
         if idcs is None:
-            idcs = np.arange(cortex.neurons.N)
+            idcs = np.arange(cortex.neurons.n)
         elif isinstance(idcs, int):
             idcs = [idcs]
         
@@ -510,20 +514,20 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
             for groupstripe in group_dict:
                 print(groupstripe, file=f, end='\n\n')
 
-                for param in group_dict[groupstripe]:
-                    less = group_dict[groupstripe][param]['less']
-                    geq = group_dict[groupstripe][param]['greater_equal']
-                    mw = group_dict[groupstripe][param]['mwtest']
-                    tt = group_dict[groupstripe][param]['ttest']
+                for par in group_dict[groupstripe]:
+                    less = group_dict[groupstripe][par]['less']
+                    geq = group_dict[groupstripe][par]['greater_equal']
+                    mw = group_dict[groupstripe][par]['mwtest']
+                    tt = group_dict[groupstripe][par]['ttest']
                     
-                    print('{}:'.format(param), file=f)
+                    print('{}:'.format(par), file=f)
                     print('rate <  {} Hz --> mean: {:.2f}, std: {:.2f} '
                           '({} cells)'.format(
-                              rate, less.mean, less.std, less.N
+                              rate, less.mean, less.std, less.n
                               ), file=f)
                     print('rate >= {} Hz --> mean: {:.2f}, std: {:.2f} '
                           '({} cells)'.format(
-                              rate, geq.mean, geq.std, geq.N
+                              rate, geq.mean, geq.std, geq.n
                               ), file=f, end='\n\n')
                     
                     if mw.pvalue>=0.05:
@@ -553,7 +557,7 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
                 print('='*40, file=f)
              
     
-    Stats = namedtuple('Stats', ['mean', 'std', 'N'])
+    Stats = namedtuple('Stats', ['mean', 'std', 'n'])
     
     if isinstance(groupstripe_list[0], (int, str)):
         groupstripe_list = [groupstripe_list]
@@ -573,26 +577,26 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
         
         param_dict = {}
         
-        for param in cortex.network.membr_params.coords['param'].values:
+        for par in cortex.network.membr_params.coords['par'].values:
             less_params = cortex.network.membr_params.loc[
-                dict(param=param, cell_index=cell_less)
+                dict(par=par, cell_index=cell_less)
                 ].values
             geq_params = cortex.network.membr_params.loc[
-                dict(param=param, cell_index=cell_geq)
+                dict(par=par, cell_index=cell_geq)
                 ].values
 
-            param_dict[param] = {}
-            param_dict[param]['less'] = (
+            param_dict[par] = {}
+            param_dict[par]['less'] = (
                 Stats(np.mean(less_params), np.std(less_params), 
                       len(less_params))
                 )
-            param_dict[param]['greater_equal'] = Stats(
+            param_dict[par]['greater_equal'] = Stats(
                 np.mean(geq_params), np.std(geq_params), len(geq_params)
                 )
-            param_dict[param]['mwtest'] = mwtest(
+            param_dict[par]['mwtest'] = mwtest(
                 less_params, geq_params, alternative='two-sided'
                 )
-            param_dict[param]['ttest'] = ttest(less_params, geq_params)
+            param_dict[par]['ttest'] = ttest(less_params, geq_params)
    
         rheo_less = cortex.rheobase(cell_less) 
         rheo_geq = cortex.rheobase(cell_geq)
@@ -715,20 +719,20 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
                 print(grouptarget, file=f, end='\n\n')
                 # print(grouptarget)
                 # print(group_dict[grouptarget])
-                for param in group_dict[grouptarget]:
-                    less = group_dict[grouptarget][param]['less']
-                    geq = group_dict[grouptarget][param]['greater_equal']
-                    mw = group_dict[grouptarget][param]['mwtest']
-                    tt = group_dict[grouptarget][param]['ttest']
+                for par in group_dict[grouptarget]:
+                    less = group_dict[grouptarget][par]['less']
+                    geq = group_dict[grouptarget][par]['greater_equal']
+                    mw = group_dict[grouptarget][par]['mwtest']
+                    tt = group_dict[grouptarget][par]['ttest']
                     
-                    print('{}:'.format(param), file=f)
+                    print('{}:'.format(par), file=f)
                     print('rate <  {} Hz --> mean: {:.2f}, std: {:.2f} '
                           '({} synapses)'.format(
-                              rate, less.mean, less.std, less.N
+                              rate, less.mean, less.std, less.n
                               ), file=f)
                     print('rate >= {} Hz --> mean: {:.2f}, std: {:.2f} '
                           '({} synapses)'.format(
-                              rate, geq.mean, geq.std, geq.N
+                              rate, geq.mean, geq.std, geq.n
                               ), file=f, end='\n\n')
                     
                     if mw.pvalue>=0.05:
@@ -765,7 +769,7 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
     if isinstance(source_groupstripe[0], (int, str)):
         source_groupstripe = [source_groupstripe]
     
-    Stats = namedtuple('Stats', ['mean', 'std', 'N'])
+    Stats = namedtuple('Stats', ['mean', 'std', 'n'])
     group_dict = {}
     
     for source in source_groupstripe:
@@ -792,29 +796,29 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
             # return syn_less
             param_dict={}
             for k in cortex.network.syn_params:
-                for param in (cortex.network.syn_params[k]
-                              .coords['param'].values):
+                for par in (cortex.network.syn_params[k]
+                              .coords['par'].values):
                     less_params = (cortex.network.syn_params[k]
-                                   .loc[dict(param=param, syn_index=syn_less)]
+                                   .loc[dict(par=par, syn_index=syn_less)]
                                    .values)
                    
                     geq_params = (cortex.network.syn_params[k]
-                                  .loc[dict(param=param, syn_index=syn_geq)]
+                                  .loc[dict(par=par, syn_index=syn_geq)]
                                   .values)
 
-                    param_dict[param] = {}
-                    param_dict[param]['less'] = Stats(
+                    param_dict[par] = {}
+                    param_dict[par]['less'] = Stats(
                         np.mean(less_params), np.std(less_params), 
                         len(less_params)
                         )
-                    param_dict[param]['greater_equal'] = Stats(
+                    param_dict[par]['greater_equal'] = Stats(
                         np.mean(geq_params), np.std(geq_params), 
                         len(geq_params)
                         )
-                    param_dict[param]['mwtest'] = mwtest(
+                    param_dict[par]['mwtest'] = mwtest(
                         less_params, geq_params, alternative='two-sided'
                         )
-                    param_dict[param]['ttest'] = ttest(less_params, geq_params)
+                    param_dict[par]['ttest'] = ttest(less_params, geq_params)
                       
             
             group_dict[gsname] = param_dict
@@ -827,7 +831,7 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
     return group_dict
     
 def get_spiking(cortex, rate, groupstripe, file=None):
-    Ntotal = cortex.network.basics.struct.Ncells_total
+    Ntotal = cortex.network.basics.struct.n_cells_total
     Nspiking = len(cortex.spiking_idcs((np.greater_equal, rate), groupstripe))
     Nnotspiking = len(cortex.spiking_idcs((np.less, rate), groupstripe))
     
@@ -860,13 +864,13 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
         neuron_idcs = cortex.neuron_idcs(groupstripe)
         
         param_dict = {}
-        for param in cortex.network.membr_params.coords['param'].values:
+        for par in cortex.network.membr_params.coords['par'].values:
             
             
             param_values = cortex.network.membr_params.loc[
-                dict(param=param, cell_index=neuron_idcs)
+                dict(par=par, cell_index=neuron_idcs)
                 ].values
-            param_dict[param] = np.mean(param_values), np.std(param_values)
+            param_dict[par] = np.mean(param_values), np.std(param_values)
         
         group_dict[gsname] = param_dict
      
@@ -883,9 +887,9 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
                           file=f, end='\n\n')
                 else:
                     print(gsname, end='\n\n', file=f)
-                for param in group_dict[gsname]:
-                    print(param, '--> mean: {:.2f}, std: {:.2f}'
-                          .format(*group_dict[gsname][param]), file=f)
+                for par in group_dict[gsname]:
+                    print(par, '--> mean: {:.2f}, std: {:.2f}'
+                          .format(*group_dict[gsname][par]), file=f)
                
                 print('-'*30, file=f, end='\n\n')
             print('='*40, file=f, end='\n\n')
@@ -1014,7 +1018,7 @@ def _butter_bandpass_filter(data, lowcut, highcut, fs=20000, order=1):
 
 def binned_spiking(cortex, idcs=None, tlim=None, delta_t=5):
     if idcs is None:
-        idcs = np.arange(cortex.neurons.N)
+        idcs = np.arange(cortex.neurons.n)
     elif isinstance(idcs, int):
         idcs = [idcs]
     
@@ -1102,6 +1106,25 @@ def separateUD(state):
         temp_i = i
         last=state[i]
     return state_down, state_up
+
+def w_null(V, memb, I):    
+    return (- memb.g_L * (V - memb.E_L) 
+            + memb.g_L * memb.delta_T * np.exp((V - memb.V_T)/memb.delta_T) 
+            + I)
+
+def w_null_boundaries(self, cortex, idc, I=0, Vlim=None):
+    
+    memb = cortex.get_memb_params(idc)
+
+    if Vlim is None:
+        Vlim = (-200, 0)
+    
+    Varr = np.arange(Vlim[0], Vlim[1], 0.1)
+    w_null_arr = np.asarray([w_null(V, memb, I) for V in Varr])
+    e_l = w_null_arr * (1- memb.C/(memb.tau_w*memb.g_L))
+    e_r = w_null_arr* (1 + memb.C/(memb.tau_w*memb.g_L))
+    
+    return Varr, w_null, e_l, e_r
 
 
     

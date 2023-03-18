@@ -736,25 +736,19 @@ def _set_syn_stsp(new_idc, stsp_kinds, stsp_values, stsp_params):
             len(idc_curr), 
             float(stsp_params['mean'].loc[
                 dict(par='U', kind=stsp_kinds[name_idc])].values), 
-            float(stsp_params['std'].loc[
-                dict(par='U', kind=stsp_kinds[name_idc])].values),  
-            0,    1, 'normal')   
+            float(stsp_params['std'].loc['U'].values),  0,    1, 'normal')   
         
         syn_params.loc['tau_rec', idc_curr] = _random_param(
             len(idc_curr), 
             float(stsp_params['mean'].loc[
                 dict(par='tau_rec', kind=stsp_kinds[name_idc])].values),
-            float(stsp_params['std'].loc[
-                dict(par='tau_rec', kind=stsp_kinds[name_idc])].values),
-            0, 1500, 'normal')
+            float(stsp_params['std'].loc['tau_rec'].values), 0, 1500, 'normal')
         
         syn_params.loc['tau_fac', idc_curr] = _random_param(
             len(idc_curr), 
             float(stsp_params['mean'].loc[
                 dict(par='tau_fac', kind=stsp_kinds[name_idc])].values), 
-            float(stsp_params['std'].loc[
-                dict(par='tau_fac', kind=stsp_kinds[name_idc])].values), 
-            0, 1500, 'normal')
+            float(stsp_params['std'].loc['tau_fac'].values), 0, 1500, 'normal')
 
     return syn_params
 

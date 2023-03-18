@@ -1,22 +1,145 @@
+"""
+This module sets the PFC network model inside Brian2 and allows the
+user to scale parameters, to set monitors and stimuti and to run
+simulations. 
+
+This file contain the following class:
+    Cortex - contains all the network, monitors and stimuli setup and
+    allow simulation runs.
+"""
+
 import brian2 as br2
 import numpy as np
-from .network_setup import *
 from numpy.matlib import repmat
 from dataclasses import dataclass
-import os, shutil
-from ._auxiliar import time_report, BaseClass
+import os
+import shutil
+from ._network_setup import *
+from ._auxiliar import *
+from ._basics_setup import membranetuple
 
 br2.BrianLogger.suppress_name('resolution_conflict', 'device')
 
 __all__ = ['Cortex']
 
 class Cortex(BaseClass):
+    """A class that contains all the network, monitor and stimuli setup
+    and allow simulation runs.
     
+    Attributes
+    ----------
+    network: network data (membrane and synaptic parameter setup,
+    connectivity).
+    
+    method: numerical integration method from Brian 2 (i.e. rk4).
+    
+    dt: simulation step (in ms).
+    
+    constant_stimuli: background constant current for each group.
+    
+    fluctuant_stimuli: non-constant current array for each group.
+    
+    transient: transient period (in ms). This period is not recorded
+    (due to artifact in the beggining of simulations).
+    
+    seed: random seed (int or None).
+    
+    cortex_neuron_scales: scales for membrane parameters.
+    
+    cortex_syn_scales: scales for synaptic parameters.
+    
+    net: Brian 2 Network instance.
+    
+    membrane_events: events for variable resetting during simulations.
+    
+    neurons: Brian 2 NeuronGroup instance. This object holds neuron
+    and membrane info.
+    
+    synapses: Brian 2 Synapses instance. This object hols synapse
+    and connectivity info.
+    
+    spikemonitor: Brian 2 SpikeMonitor instance. This object monitors
+    spiking activity.
+    
+    external_stimuli: this attribute holds data about the external
+    (i.e. Poisson or regular) stimuli.
+    
+    neuron_monitors: membrane variable monitors.
+    
+    synapse_monitors: synaptic variable monitors.
+    
+    longrun_neuron_monitors: membrane variable monitors for long
+    simulations.
+    
+    longrun_synapse_monitors: synaptic variable monitors for long
+    simulations.
+    
+    recorded: recorded arrays from neuron and synaptic monitors.
+    
+
+    Static methods
+    --------------
+    setup: set a new model instance from scratch.
+    
+    load: set a new model instance loading network data that was
+    previously saved.
+    
+    
+    Instance methods
+    ----------------
+    save: save network data.
+    
+    run: run a simulation.
+    
+    set_fluctuant_stimuli: set non-constant stimuli.
+    
+    set_constant_stimuli: set background constant stimuli.
+    
+    set_poisson_stimuli: set stimuli from external poisson spike 
+    trains.             
+    
+    set_regular_stimuli: set stimuli from regular spike trains.
+    
+    set_neuron_monitors: set monitors for membrane variables.
+    
+    set_synapse_monitors: set monitors for synaptic variables.
+    
+    set_longrun_neuron_monitors: set monitors for membrane variables
+    in long simulations.
+    
+    set_longrun_synapse_monitors: set monitors for synaptic variables
+    in long simulations.
+    
+    get_memb_params: get membrane parameters from a neuron from the
+    network.
+    
+    group_idcs: get group indexes.
+    
+    neuron_idcs: get neuron indexes.
+    
+    syn_idcs_from_neurons: get synapses indexes informing neuron
+    indexes.
+    
+    syn_idcs_from_groups: get synapses indexes informing group 
+    indexes/names.
+    
+    spiking_idcs: get indexes of neurons with the prompted spiking
+    rate.
+    
+    spiking_count: get spiking counts of neurons.
+    
+    spiking_rate: get spiking rate of neurons.
+    
+    rheobase: get rheobase of neurons.    
+    """
+    
+    @staticmethod
     @time_report('Cortex setup')
     def setup(n_cells, n_stripes, constant_stimuli, method, dt, transient=0, 
               basics_scales=None, fluctuant_stimuli=None, seed=None,
               alternative_pcells=None, basics_disp=True,
               cortex_neuron_scales=None, cortex_syn_scales=None):
+        
         
         network = network_setup(n_cells, n_stripes, basics_scales, seed,
                                 alternative_pcells, basics_disp)
@@ -25,6 +148,7 @@ class Cortex(BaseClass):
                          fluctuant_stimuli, seed, cortex_neuron_scales, 
                          cortex_syn_scales)
     
+    @staticmethod
     @time_report('Cortex setup (with network loading)')
     def load(path, constant_stimuli, method, dt, transient=0, 
              fluctuant_stimuli=None, cortex_neuron_scales=None,
@@ -71,7 +195,8 @@ class Cortex(BaseClass):
             network.basics.equations.membr_model.format(self.fluctuant_str))
         
         self.neurons = br2.NeuronGroup(
-            N=network.basics.struct.Ncells_total, model=membr_model,
+            
+            N=network.basics.struct.n_cells_total, model=membr_model,
             threshold=network.basics.equations.membr_threshold, 
             reset=network.basics.equations.membr_reset, events=membrane_events,
             method=method, refractory=5*br2.ms, dt=self.dt)
@@ -115,8 +240,8 @@ class Cortex(BaseClass):
         self.longrun_synapse_monitors=_NetworkHolder()
         self.recorded=_VarHolder()
         
-        self.monitor_schedule={}
-        self.longrun_monitor_control=[]
+        self._monitor_schedule={}
+        self._longrun_monitor_control=[]
     
     def save(self, path):
         self.network.save(path)
@@ -139,12 +264,12 @@ class Cortex(BaseClass):
         if self.fluctuant_array is not None:
             fluctuant_array = br2.TimedArray(self.fluctuant_array, dt=self.dt)
             
-        schedule_times = np.asarray(list(self.monitor_schedule.keys()))
+        schedule_times = np.asarray(list(self._monitor_schedule.keys()))
         t0 = self.neurons.t/br2.ms
              
         longrun_times = []
         longrun_all_times = []
-        for longrun_control in self.longrun_monitor_control:
+        for longrun_control in self._longrun_monitor_control:
             longrun_stop = (longrun_control['stop'] if longrun_control['stop'] 
                             is not None and longrun_control['stop'] <=t else t)    
             times = np.arange(
@@ -180,9 +305,9 @@ class Cortex(BaseClass):
               'ms', end='\n\n')
         
         if t0 in schedule_times:
-            for monitor in self.monitor_schedule[t0]['start']:
+            for monitor in self._monitor_schedule[t0]['start']:
                 monitor.active=True
-            for monitor in self.monitor_schedule[t0]['stop']:
+            for monitor in self._monitor_schedule[t0]['stop']:
                 monitor.active=False
         
         for i in range(len(current_schedule_intervals)):
@@ -220,9 +345,9 @@ class Cortex(BaseClass):
                         self._process_longrun(l, t1)
             
             if t1 in schedule_times:
-                for monitor in self.monitor_schedule[t1]['start']:
+                for monitor in self._monitor_schedule[t1]['start']:
                     monitor.active=True
-                for monitor in self.monitor_schedule[t1]['stop']:
+                for monitor in self._monitor_schedule[t1]['stop']:
                     monitor.active=False
         print()
         self._restore_longrun(erase_longrun)
@@ -259,280 +384,14 @@ class Cortex(BaseClass):
         self.fluctuant_str = fluctuant_str
     
     def set_constant_stimuli(self):
-        I_DC = np.zeros(self.network.basics.struct.Ncells_total)
+        I_DC = np.zeros(self.network.basics.struct.n_cells_total)
         if self.constant_stimuli is not None:
             for target, value in self.constant_stimuli:
                 if len(self.neuron_idcs(target)) > 0:
                     I_DC[self.neuron_idcs(target)] = value
          
         self.neurons.I_DC = I_DC*br2.pA
-    
-    def _get_membrane_events_dict(self):
-        membrane_events = {}
-        ctx_events = self.network.basics.equations.membr_events
-        for event in ctx_events:        
-            membrane_events[event] = (ctx_events[event]['condition'])
-        return membrane_events
-
-    def _set_membrane_events(self):
-        self.event_monitors=_NetworkHolder()
-        ctx_events = self.network.basics.equations.membr_events
-        for event in ctx_events:
-            self.event_monitors[event] = br2.EventMonitor(
-                self.neurons, event, variables=ctx_events[event]['vars'])
-            self.neurons.run_on_event(event, ctx_events[event]['reset'])    
-
-    def _set_neuron_params(self):
-        ctx_membr = self.network.basics.membr
-        for param in ctx_membr.name_units:
-            unit = ctx_membr.unitbr2_dict[ctx_membr.name_units[param]['unit']]
-            value = ctx_membr.name_units[param]['value']
-            if isinstance(value, str):  
-               setattr(self.neurons, param, self.network.membr_params.loc[
-                   dict(param=value)].values.astype(float)*unit)
-            elif isinstance(value, int) or isinstance(value, float):
-                 setattr(self.neurons, param, value*unit)
         
-    def _set_auxiliar_vars(self):
-        self.neurons.I_ref = self.network.refractory_current.values*br2.pA     
-        self.neurons.last_spike = -1000*br2.ms
-        
-    def _set_initial_state(self):
-        self.neurons.V = self.neurons.E_L
-        self.neurons.w = 0 * br2.pA
-    
-    def _set_channels(self):
-        ctx_channels = self.network.basics.syn.channels
-        param_dict = ctx_channels.unitvalue_dict
-        for channel in ctx_channels.names:
-            for param in ctx_channels.params.coords['param'].values:
-                paramchannel = '{}_{}'.format(param, channel)
-                unit = self.network.basics.membr.unitbr2_dict[
-                    param_dict[paramchannel]['unit']]
-                value = float(ctx_channels.params.loc[
-                    dict(param=param, channel=channel)].values)  
-                setattr(
-                    self.neurons, '{}_{}'.format(param, channel), value*unit)
-                             
-    def _set_stsp_vars(self):
-        for param in list(self.network.basics.syn.STSP.decl_vars.keys()):
-            unit = self.network.basics.membr.unitbr2_dict[
-                self.network.basics.syn.STSP.decl_vars[param]['unit']]
-            value = self.network.basics.syn.STSP.decl_vars[param]['value']
-            if isinstance(value, str):  
-               setattr(self.synapses, param, 
-                       (self.network.syn_params['STSP_params']
-                        .loc[dict(param=value)].values.astype(float)*unit))
-            elif isinstance(value, int) or isinstance(value, float):
-                 setattr(self.synapses, param, value*unit)
-    
-    def _set_syn_spike_params(self):    
-        for param in list(self.network.basics.syn.spiking.names.keys()):          
-            unit = self.network.basics.membr.unitbr2_dict[
-                self.network.basics.syn.spiking.names[param]['unit']
-                ]
-            value = self.network.basics.syn.spiking.names[param]['value']
-            if isinstance(value, str):  
-               setattr(self.synapses, param, 
-                       (self.network.syn_params['spiking']
-                        .loc[dict(param=value)].values.astype(float)*unit)
-                       )
-            elif isinstance(value, int) or isinstance(value, float):
-                 setattr(self.synapses, param, value*unit)
-    
-    def _get_gsyn_amp(self):
-        gsyn_amp={}
-        for name in self.network.basics.syn.channels.names:
-            factor = (self.network.basics.syn.channels.gsyn_factor
-                      .loc[dict(channel=name, param=['factor'])].values)
-            tau_on, tau_off = (
-                self.network.basics.syn.channels.params
-                .loc[dict(channel=name, param=['tau_on', 'tau_off'])].values
-                )
-            gsyn_amp[name] =  factor * tau_off * tau_on/(tau_off-tau_on)
-        
-        return gsyn_amp
-    
-    
-    def _set_syn_channels(self):
-        for name in self.network.basics.syn.channels.names:
-            setattr(
-                self.synapses, name, 
-                (self.network.syn_params['channel'].loc[dict(param='channel')]
-                 .values==self.network.basics.syn.channels.names.index(name))
-                .astype(int)
-                )
-            self.synapses.gsyn_amp = (
-                self.synapses.gsyn_amp 
-                + getattr(self.synapses, name) * self.gsyn_amp[name]
-                )
-            
-    def _set_delay(self):
-        delay = (self.network.syn_params['delay'].loc[dict(param='delay')]
-                 .values.astype(float) * br2.ms)
-        
-        for p in range(len(self.network.basics.equations.syn_pathway)):
-            getattr(
-                self.synapses, 
-                'p{}'.format(p)
-                ).order = (self.network.basics.equations
-                           .syn_pathway[p]['order'])
-                           
-            if self.network.basics.equations.syn_pathway[p]['delay']:
-                getattr(self.synapses, 'p{}'.format(p)).delay = delay    
-        
-    def _get_syn_pathway_dict(self):
-        syn_dict_pathway = {}
-        for p in range(len(self.network.basics.equations.syn_pathway)):
-            syn_dict_pathway['p{}'.format(p)] = (self.network.basics.equations
-                                                 .syn_pathway[p]['eq'])
-            
-        return syn_dict_pathway 
-    
-    def _get_ext_syn_pathway_dict(self):
-        syn_dict_pathway = {}
-        for p in range(len(self.network.basics.equations.ext_syn_pathway)):
-            syn_dict_pathway['p{}'.format(p)] = (self.network.basics.equations
-                                                 .ext_syn_pathway[p]['eq'])
-        return syn_dict_pathway 
-    
-    def _set_synapses(self):
-        
-        self.gsyn_amp=self._get_gsyn_amp()   
-        
-        if self.network.syn_pairs.shape[1] > 0:
-            self._set_syn_channels()         
-            self._set_stsp_vars()
-            self._set_syn_spike_params()
-            self._set_delay()    
-    
-    def _process_longrun(self, l, t1):
-      
-        if not os.path.isdir('longrun'):
-            os.mkdir('longrun')
-        name_units = self.network.basics.equations.var_units
-        unitbr2_dict = self.network.basics.membr.unitbr2_dict
-        
-        longrun = self.longrun_monitor_control[l]
-        variables = longrun['monitor'].keys()
-        
-        if (((longrun['stop'] is not None 
-                  and longrun['start']<=t1<longrun['stop']) 
-                 or (longrun['stop'] is None and longrun['start']<=t1)) 
-                and not longrun['longrun_monitor'].active): 
-            longrun['longrun_monitor'].active = True
-            for var in variables:
-                longrun['files'][var] = []
-        elif longrun['longrun_monitor'].active:
-            i = round((t1 - longrun['start'])/longrun['interval'])
-            for var in variables:
-                mon_var = (getattr(longrun['longrun_monitor'], var)
-                           /unitbr2_dict[name_units[var]])
-                if longrun['population_agroupate'] is not None and var!='t':
-                    if longrun['population_agroupate'] == 'mean':
-                        mon_var = np.mean(mon_var, axis=0)
-                    elif longrun['population_agroupate'] == 'sum':
-                        mon_var = np.sum(mon_var, axis=0)
-          
-            
-                with open('longrun/{}_{}_{}.npy'.format(var, i, l),'wb') as f:
-                    np.save(f, mon_var)
-                    longrun['files'][var].append(
-                        'longrun/{}_{}_{}.npy'.format(var, i, l))
-            idc = longrun['longrun_monitor'].record
-            v = longrun['longrun_monitor'].record_variables
-            source = longrun['longrun_monitor'].source
-            
-            self.net.remove(longrun['longrun_monitor'])
-            longrun['longrun_monitor'] = br2.StateMonitor(source, v, idc, 
-                                                          dt=self.dt)
-            self.net.add(longrun['longrun_monitor'])
-        
-        if (longrun['stop'] is not None and t1 >= longrun['stop'] 
-                and  longrun['longrun_monitor'].active):     
-            longrun['longrun_monitor'].active=False
-            self.net.remove(longrun['longrun_monitor'])
-    
-    def _restore_longrun(self, erase=True):
-        
-        name_units = self.network.basics.equations.var_units
-        unitbr2_dict = self.network.basics.membr.unitbr2_dict
-        for longrun in self.longrun_monitor_control:
-            for var in list(longrun['files'].keys()):
-                longvar = []
-                for file in longrun['files'][var]:                                   
-                    longvar.append(np.load(file))  
-                
-                if longrun['population_agroupate'] is not None  or var=='t':
-                    longrun['monitor'][var] = np.concatenate(longvar)
-                else:
-                    longrun['monitor'][var] = np.concatenate(longvar, axis=1)
-                    
-                longrun['monitor'][var] = (longrun['monitor'][var]
-                                           *unitbr2_dict[name_units[var]])
-                
-        if len(self.longrun_monitor_control) and erase:
-            shutil.rmtree('longrun')
-    
-    def _set_custom_stimuli(self, name, n_source, channel, spike_idcs, 
-                           spike_times, pairs_connected, gmax, pfail):
-        
-        if isinstance(channel, str):
-            channel = [channel]        
-        
-        n_connected = pairs_connected.shape[1]
-        
-        channel_arr = []
-        for ch in channel:
-            channel_arr.append([ch]*n_connected)
-        channel_arr = np.concatenate(channel_arr)
-        pairs_connected = repmat(pairs_connected, 1, len(channel))
-        
-        if isinstance(gmax, (int, float)):
-            gmax = [gmax]
-        
-        if len(gmax)==1:
-            gmax_arr = gmax*n_connected*len(channel)
-        elif len(gmax)==n_connected:   
-            gmax_arr = gmax*len(channel)
-            
-        if isinstance(pfail, (int, float)):
-            pfail = [pfail]
-            
-        if len(pfail)==1:
-            pfail_arr = pfail*n_connected*len(channel)
-        elif len(pfail)==n_connected:   
-            pfail_arr = pfail*len(channel)
-        
-        self.external_stimuli[name] = _NetworkHolder()
-        self.external_stimuli[name].generator = br2.SpikeGeneratorGroup(
-            n_source, spike_idcs, spike_times*br2.ms, dt=self.dt)
-        ext_syn_model = self.network.basics.equations.ext_syn_model
-        ext_syn_dict = self._get_ext_syn_pathway_dict()
-        
-        self.external_stimuli[name].synapses = br2.Synapses(
-            self.external_stimuli[name].generator, self.neurons, 
-            model=ext_syn_model, on_pre=ext_syn_dict, dt=self.dt)
-        self.external_stimuli[name].synapses.connect(
-            i=pairs_connected[1,:], j=pairs_connected[0,:])
-
-        for ch_name in self.network.basics.syn.channels.names:
-            setattr(self.external_stimuli[name].synapses, ch_name, 
-                    (channel_arr==ch_name).astype(int))
-            self.external_stimuli[name].synapses.gsyn_amp = (
-                self.external_stimuli[name].synapses.gsyn_amp 
-                + getattr(self.external_stimuli[name].synapses, ch_name) 
-                * self.gsyn_amp[ch_name])
-        
-        self.external_stimuli[name].synapses.pfail = pfail_arr
-        self.external_stimuli[name].synapses.gmax = gmax_arr *br2.nS 
-        self.external_stimuli[name].spikemonitor = br2.SpikeMonitor(
-            self.external_stimuli[name].generator)
-        
-        self.net.add(self.external_stimuli[name].generator, 
-                     self.external_stimuli[name].synapses, 
-                     self.external_stimuli[name].spikemonitor)
- 
     def set_poisson_stimuli(self, stimulator_name, n_source, channels, 
                             target_idc, pcon, rate, start, stop, gmax, pfail):
     
@@ -601,29 +460,7 @@ class Cortex(BaseClass):
                                  spike_idcs, spike_times, pairs_connected,
                                  gmax, pfail)
     
-    def set_monitors(self, monitor, variables, start, stop):
-        
-        if self.transient>0:
-            monitor.active = False
-        for var in variables:
-            self.recorded[var] = monitor
-            
-        if start is None:
-            start = self.transient
-        
-        if start in self.monitor_schedule:
-            self.monitor_schedule[start]['start'].append(monitor)
-        else:
-            self.monitor_schedule[start] = dict(start=[monitor], stop=[])
-            
-        if stop is not None:
-            if stop in self.monitor_schedule:
-                self.monitor_schedule[stop]['stop'].append(monitor)
-            else:
-                self.monitor_schedule[stop] = dict(start=[], stop=[monitor])
-                
-        self.net.add(monitor)
- 
+    
     def set_neuron_monitors(self, name, variables, groupstripe_list, 
                             start=None, stop=None):
         
@@ -634,7 +471,7 @@ class Cortex(BaseClass):
               
         self.neuron_monitors[name] =  br2.StateMonitor(
             self.neurons, variables, neuron_idc, dt=self.dt)
-        self.set_monitors(self.neuron_monitors[name], variables, start, stop)
+        self._set_monitors(self.neuron_monitors[name], variables, start, stop)
         
     def set_synapse_monitors(self, name, variables, target_groupstripe_list, 
                              source_groupstripe_list, start=None, stop=None):
@@ -647,26 +484,9 @@ class Cortex(BaseClass):
           
         self.synapse_monitors[name] =  br2.StateMonitor(
             self.neurons, variables, syn_idc, dt=self.dt)
-        self.set_monitors(self.synapse_monitors[name], variables, start, stop)      
+        self._set_monitors(self.synapse_monitors[name], variables, start, stop)      
     
-    def set_longrun_monitors(self, monitor, longrun_monitor, variables, 
-                             interval, start, stop, population_agroupate):
-        
-        if self.transient>0:
-            longrun_monitor.active = False
-        for var in variables:
-            self.recorded[var] = monitor
-            
-        if start is None:
-            start = self.transient
-        
-        self.longrun_monitor_control.append(
-            dict(start=start, stop=stop, interval=interval, 
-                 longrun_monitor=longrun_monitor, monitor=monitor, 
-                 population_agroupate=population_agroupate, files={}))
-    
-        self.net.add(longrun_monitor)    
-    
+
     def set_longrun_neuron_monitors(self, name, variables, groupstripe_list, 
                                     interval, start=None, stop=None, 
                                     population_agroupate=None):
@@ -684,7 +504,7 @@ class Cortex(BaseClass):
         for var in variables:
             self.neuron_monitors[name][var] = None
             
-        self.set_longrun_monitors(
+        self._set_longrun_monitors(
             self.neuron_monitors[name], self.longrun_neuron_monitors[name],
             variables, interval, start, stop, population_agroupate)
         
@@ -707,37 +527,23 @@ class Cortex(BaseClass):
         for var in variables:
             self.synapse_monitors[name][var] = None
             
-        self.set_longrun_monitors(
+        self._set_longrun_monitors(
             self.synapse_monitors[name], self.longrun_synapse_monitors[name], 
             variables, interval, start, stop, population_agroupate)
-    
-    def _set_syn_scales(self):
-        if self.cortex_syn_scales is not None:
-            for param in self.cortex_syn_scales:
-                if isinstance(self.cortex_syn_scales[param][-1],
-                              (int, float)):
-                    self.cortex_syn_scales[param] = [
-                        self.cortex_syn_scales[param]]
-                for scale in self.cortex_syn_scales[param]:
-                    target_groups, source_groups, channels, factor = scale
-                    idc = self.syn_idcs_from_groups(target_groups, 
-                                                    source_groups, channels)
-                    getattr(self.synapses, param)[idc] =  (
-                        getattr(self.synapses, param)[idc] * factor)
-      
-    def _set_neuron_scales(self):
-        if self.cortex_neuron_scales is not None:
-            for param in self.cortex_neuron_scales:
-                if isinstance(self.cortex_neuron_scales[param][-1], 
-                              (int, float)):
-                    self.cortex_neuron_scales[param] = (
-                        [self.cortex_neuron_scales[param]])
-                for scale in self.cortex_neuron_scales[param]:
-                    groups, factor = scale
-                    idc = self.neuron_idcs(groups)
-                    getattr(self.neurons, param)[idc] = (
-                        getattr(self.neurons, param)[idc] * factor)
-                
+        
+    def get_memb_params(self, idc):
+        C = self.neurons.C[idc]/br2.pF
+        g_L = self.neurons.g_L[idc]/br2.nS
+        E_L = self.neurons.E_L[idc]/br2.mV
+        delta_T = self.neurons.delta_T[idc]/br2.mV
+        V_up = self.neurons.V_up[idc]/br2.mV
+        tau_w = self.neurons.tau_w[idc]/br2.ms
+        b = self.neurons.V_T[idc]/br2.pA
+        V_r = self.neurons.V_r[idc]/br2.mV
+        V_T = self.neurons.V_T[idc]/br2.mV
+        
+        return membranetuple(C, g_L, E_L, delta_T, V_up, tau_w, b, V_r, V_T)
+          
     def group_idcs(self, group):
         return self.network.group_idcs(group)
 
@@ -763,7 +569,7 @@ class Cortex(BaseClass):
         for relation, comparison_rate in comparisons: 
             idc_bool_list.append(relation(rate, comparison_rate))
         
-        sp_idc = np.arange(self.neurons.N)
+        sp_idc = np.arange(self.neurons.n)
         
         if groupstripe is not None:
             neuronidc = self.neuron_idcs(groupstripe)
@@ -793,7 +599,7 @@ class Cortex(BaseClass):
                 t0,t1 = tlim
             
             if neuron_idcs is None:
-                neuron_idcs = np.arange(self.neurons.N)
+                neuron_idcs = np.arange(self.neurons.n)
                 
             spike_trains = self.spikemonitor.spike_trains()
        
@@ -835,27 +641,344 @@ class Cortex(BaseClass):
     def rheobase(self, neuron_idcs=None):     
         return self.network.rheobase(neuron_idcs)
     
-    def w_null_boundaries(self, idc, I, Vlim=None):
-        C = self.neurons.C[idc]/br2.pF
-        g_L = self.neurons.g_L[idc]/br2.nS
-        delta_T = self.neurons.delta_T[idc]/br2.mV
-        E_L = self.neurons.E_L[idc]/br2.mV
-        V_T = self.neurons.V_T[idc]/br2.mV
-        tau_w = self.neurons.tau_w[idc]/br2.ms
-        tau_m = C/g_L
+    
+    def _get_membrane_events_dict(self):
+        membrane_events = {}
+        ctx_events = self.network.basics.equations.membr_events
+        for event in ctx_events:        
+            membrane_events[event] = (ctx_events[event]['condition'])
+        return membrane_events
+
+    def _set_membrane_events(self):
+        self.event_monitors=_NetworkHolder()
+        ctx_events = self.network.basics.equations.membr_events
+        for event in ctx_events:
+            self.event_monitors[event] = br2.EventMonitor(
+                self.neurons, event, variables=ctx_events[event]['vars'])
+            self.neurons.run_on_event(event, ctx_events[event]['reset'])    
+
+    def _set_neuron_params(self):
+        ctx_membr = self.network.basics.membr
+        for par in ctx_membr.name_units:
+            unit = ctx_membr.unitbr2_dict[ctx_membr.name_units[par]['unit']]
+            value = ctx_membr.name_units[par]['value']
+            if isinstance(value, str):  
+               setattr(self.neurons, par, self.network.membr_params.loc[
+                   dict(par=value)].values.astype(float)*unit)
+            elif isinstance(value, int) or isinstance(value, float):
+                 setattr(self.neurons, par, value*unit)
         
-        def w_V(V):        
-            return (- g_L * (V - E_L) 
-                    + g_L * delta_T * np.exp((V - V_T)/delta_T) + I)
-        if Vlim is None:
-            Vlim = (-200, 0)
+    def _set_auxiliar_vars(self):
+        self.neurons.I_ref = self.network.refractory_current.values*br2.pA     
+        self.neurons.last_spike = -1000*br2.ms
+        
+    def _set_initial_state(self):
+        self.neurons.V = self.neurons.E_L
+        self.neurons.w = 0 * br2.pA
+    
+    def _set_channels(self):
+        ctx_channels = self.network.basics.syn.channels
+        param_dict = ctx_channels.unitvalue_dict
+        for channel in ctx_channels.names:
+            for par in ctx_channels.params.coords['par'].values:
+                paramchannel = '{}_{}'.format(par, channel)
+                unit = self.network.basics.membr.unitbr2_dict[
+                    param_dict[paramchannel]['unit']]
+                value = float(ctx_channels.params.loc[
+                    dict(par=par, channel=channel)].values)  
+                setattr(
+                    self.neurons, '{}_{}'.format(par, channel), value*unit)
+                             
+    def _set_stsp_vars(self):
+        for par in list(self.network.basics.syn.stsp.decl_vars.keys()):
+            unit = self.network.basics.membr.unitbr2_dict[
+                self.network.basics.syn.stsp.decl_vars[par]['unit']]
+            value = self.network.basics.syn.stsp.decl_vars[par]['value']
+            if isinstance(value, str):  
+               setattr(self.synapses, par, 
+                       (self.network.syn_params['STSP_params']
+                        .loc[dict(par=value)].values.astype(float)*unit))
+            elif isinstance(value, int) or isinstance(value, float):
+                 setattr(self.synapses, par, value*unit)
+    
+    def _set_syn_spike_params(self):    
+        for par in list(self.network.basics.syn.spiking.names.keys()):          
+            unit = self.network.basics.membr.unitbr2_dict[
+                self.network.basics.syn.spiking.names[par]['unit']
+                ]
+            value = self.network.basics.syn.spiking.names[par]['value']
+            if isinstance(value, str):  
+               setattr(self.synapses, par, 
+                       (self.network.syn_params['spiking']
+                        .loc[dict(par=value)].values.astype(float)*unit)
+                       )
+            elif isinstance(value, int) or isinstance(value, float):
+                 setattr(self.synapses, par, value*unit)
+    
+    def _get_gsyn_amp(self):
+        gsyn_amp={}
+        for name in self.network.basics.syn.channels.names:
+            factor = (self.network.basics.syn.channels.gsyn_factor
+                      .loc[dict(channel=name, par=['factor'])].values)
+            tau_on, tau_off = (
+                self.network.basics.syn.channels.params
+                .loc[dict(channel=name, par=['tau_on', 'tau_off'])].values
+                )
+            gsyn_amp[name] =  factor * tau_off * tau_on/(tau_off-tau_on)
+        
+        return gsyn_amp
+    
+    
+    def _set_syn_channels(self):
+        for name in self.network.basics.syn.channels.names:
+            setattr(
+                self.synapses, name, 
+                (self.network.syn_params['channel'].loc[dict(par='channel')]
+                 .values==self.network.basics.syn.channels.names.index(name))
+                .astype(int)
+                )
+            self.synapses.gsyn_amp = (
+                self.synapses.gsyn_amp 
+                + getattr(self.synapses, name) * self.gsyn_amp[name]
+                )
             
-        Varr = np.arange(Vlim[0], Vlim[1], 0.1)
-        w_null = np.asarray([w_V(V) for V in Varr])
-        e_l = w_null * (1- tau_m/tau_w)
-        e_r = w_null* (1+ tau_m/tau_w)
+    def _set_delay(self):
+        delay = (self.network.syn_params['delay'].loc[dict(par='delay')]
+                 .values.astype(float) * br2.ms)
         
-        return Varr, w_null, e_l, e_r
+        for p in range(len(self.network.basics.equations.syn_pathway)):
+            getattr(
+                self.synapses, 
+                'p{}'.format(p)
+                ).order = (self.network.basics.equations
+                           .syn_pathway[p]['order'])
+                           
+            if self.network.basics.equations.syn_pathway[p]['delay']:
+                getattr(self.synapses, 'p{}'.format(p)).delay = delay    
+        
+    def _get_syn_pathway_dict(self):
+        syn_dict_pathway = {}
+        for p in range(len(self.network.basics.equations.syn_pathway)):
+            syn_dict_pathway['p{}'.format(p)] = (self.network.basics.equations
+                                                 .syn_pathway[p]['eq'])
+            
+        return syn_dict_pathway 
+    
+    def _get_ext_syn_pathway_dict(self):
+        syn_dict_pathway = {}
+        for p in range(len(self.network.basics.equations.ext_syn_pathway)):
+            syn_dict_pathway['p{}'.format(p)] = (self.network.basics.equations
+                                                 .ext_syn_pathway[p]['eq'])
+        return syn_dict_pathway 
+    
+    def _set_synapses(self):
+        
+        self.gsyn_amp=self._get_gsyn_amp()   
+        
+        if self.network.syn_pairs.shape[1] > 0:
+            self._set_syn_channels()         
+            self._set_stsp_vars()
+            self._set_syn_spike_params()
+            self._set_delay()    
+    
+    def _process_longrun(self, l, t1):
+      
+        if not os.path.isdir('longrun'):
+            os.mkdir('longrun')
+        name_units = self.network.basics.equations.var_units
+        unitbr2_dict = self.network.basics.membr.unitbr2_dict
+        
+        longrun = self._longrun_monitor_control[l]
+        variables = longrun['monitor'].keys()
+        
+        if (((longrun['stop'] is not None 
+                  and longrun['start']<=t1<longrun['stop']) 
+                 or (longrun['stop'] is None and longrun['start']<=t1)) 
+                and not longrun['longrun_monitor'].active): 
+            longrun['longrun_monitor'].active = True
+            for var in variables:
+                longrun['files'][var] = []
+        elif longrun['longrun_monitor'].active:
+            i = round((t1 - longrun['start'])/longrun['interval'])
+            for var in variables:
+                mon_var = (getattr(longrun['longrun_monitor'], var)
+                           /unitbr2_dict[name_units[var]])
+                if longrun['population_agroupate'] is not None and var!='t':
+                    if longrun['population_agroupate'] == 'mean':
+                        mon_var = np.mean(mon_var, axis=0)
+                    elif longrun['population_agroupate'] == 'sum':
+                        mon_var = np.sum(mon_var, axis=0)
+          
+            
+                with open('longrun/{}_{}_{}.npy'.format(var, i, l),'wb') as f:
+                    np.save(f, mon_var)
+                    longrun['files'][var].append(
+                        'longrun/{}_{}_{}.npy'.format(var, i, l))
+            idc = longrun['longrun_monitor'].record
+            v = longrun['longrun_monitor'].record_variables
+            source = longrun['longrun_monitor'].source
+            
+            self.net.remove(longrun['longrun_monitor'])
+            longrun['longrun_monitor'] = br2.StateMonitor(source, v, idc, 
+                                                          dt=self.dt)
+            self.net.add(longrun['longrun_monitor'])
+        
+        if (longrun['stop'] is not None and t1 >= longrun['stop'] 
+                and  longrun['longrun_monitor'].active):     
+            longrun['longrun_monitor'].active=False
+            self.net.remove(longrun['longrun_monitor'])
+    
+    def _restore_longrun(self, erase=True):
+        
+        name_units = self.network.basics.equations.var_units
+        unitbr2_dict = self.network.basics.membr.unitbr2_dict
+        for longrun in self._longrun_monitor_control:
+            for var in list(longrun['files'].keys()):
+                longvar = []
+                for file in longrun['files'][var]:                                   
+                    longvar.append(np.load(file))  
+                
+                if longrun['population_agroupate'] is not None  or var=='t':
+                    longrun['monitor'][var] = np.concatenate(longvar)
+                else:
+                    longrun['monitor'][var] = np.concatenate(longvar, axis=1)
+                    
+                longrun['monitor'][var] = (longrun['monitor'][var]
+                                           *unitbr2_dict[name_units[var]])
+                
+        if len(self._longrun_monitor_control) and erase:
+            shutil.rmtree('longrun')
+    
+    def _set_custom_stimuli(self, name, n_source, channel, spike_idcs, 
+                           spike_times, pairs_connected, gmax, pfail):
+        
+        if isinstance(channel, str):
+            channel = [channel]        
+        
+        n_connected = pairs_connected.shape[1]
+        
+        channel_arr = []
+        for ch in channel:
+            channel_arr.append([ch]*n_connected)
+        channel_arr = np.concatenate(channel_arr)
+        pairs_connected = repmat(pairs_connected, 1, len(channel))
+        
+        if isinstance(gmax, (int, float)):
+            gmax = [gmax]
+        
+        if len(gmax)==1:
+            gmax_arr = gmax*n_connected*len(channel)
+        elif len(gmax)==n_connected:   
+            gmax_arr = gmax*len(channel)
+            
+        if isinstance(pfail, (int, float)):
+            pfail = [pfail]
+            
+        if len(pfail)==1:
+            pfail_arr = pfail*n_connected*len(channel)
+        elif len(pfail)==n_connected:   
+            pfail_arr = pfail*len(channel)
+        
+        self.external_stimuli[name] = _NetworkHolder()
+        self.external_stimuli[name].generator = br2.SpikeGeneratorGroup(
+            n_source, spike_idcs, spike_times*br2.ms, dt=self.dt)
+        ext_syn_model = self.network.basics.equations.ext_syn_model
+        ext_syn_dict = self._get_ext_syn_pathway_dict()
+        
+        self.external_stimuli[name].synapses = br2.Synapses(
+            self.external_stimuli[name].generator, self.neurons, 
+            model=ext_syn_model, on_pre=ext_syn_dict, dt=self.dt)
+        self.external_stimuli[name].synapses.connect(
+            i=pairs_connected[1,:], j=pairs_connected[0,:])
+
+        for ch_name in self.network.basics.syn.channels.names:
+            setattr(self.external_stimuli[name].synapses, ch_name, 
+                    (channel_arr==ch_name).astype(int))
+            self.external_stimuli[name].synapses.gsyn_amp = (
+                self.external_stimuli[name].synapses.gsyn_amp 
+                + getattr(self.external_stimuli[name].synapses, ch_name) 
+                * self.gsyn_amp[ch_name])
+        
+        self.external_stimuli[name].synapses.pfail = pfail_arr
+        self.external_stimuli[name].synapses.gmax = gmax_arr *br2.nS 
+        self.external_stimuli[name].spikemonitor = br2.SpikeMonitor(
+            self.external_stimuli[name].generator)
+        
+        self.net.add(self.external_stimuli[name].generator, 
+                     self.external_stimuli[name].synapses, 
+                     self.external_stimuli[name].spikemonitor)
+ 
+    
+    def _set_syn_scales(self):
+        if self.cortex_syn_scales is not None:
+            for par in self.cortex_syn_scales:
+                if isinstance(self.cortex_syn_scales[par][-1],
+                              (int, float)):
+                    self.cortex_syn_scales[par] = [
+                        self.cortex_syn_scales[par]]
+                for scale in self.cortex_syn_scales[par]:
+                    target_groups, source_groups, channels, factor = scale
+                    idc = self.syn_idcs_from_groups(target_groups, 
+                                                    source_groups, channels)
+                    getattr(self.synapses, par)[idc] =  (
+                        getattr(self.synapses, par)[idc] * factor)
+      
+    def _set_neuron_scales(self):
+        if self.cortex_neuron_scales is not None:
+            for par in self.cortex_neuron_scales:
+                if isinstance(self.cortex_neuron_scales[par][-1], 
+                              (int, float)):
+                    self.cortex_neuron_scales[par] = (
+                        [self.cortex_neuron_scales[par]])
+                for scale in self.cortex_neuron_scales[par]:
+                    groups, factor = scale
+                    idc = self.neuron_idcs(groups)
+                    getattr(self.neurons, par)[idc] = (
+                        getattr(self.neurons, par)[idc] * factor)
+                    
+    def _set_monitors(self, monitor, variables, start, stop):
+        
+        if self.transient>0:
+            monitor.active = False
+        for var in variables:
+            self.recorded[var] = monitor
+            
+        if start is None:
+            start = self.transient
+        
+        if start in self._monitor_schedule:
+            self._monitor_schedule[start]['start'].append(monitor)
+        else:
+            self._monitor_schedule[start] = dict(start=[monitor], stop=[])
+            
+        if stop is not None:
+            if stop in self._monitor_schedule:
+                self._monitor_schedule[stop]['stop'].append(monitor)
+            else:
+                self._monitor_schedule[stop] = dict(start=[], stop=[monitor])
+                
+        self.net.add(monitor)
+
+    def _set_longrun_monitors(self, monitor, longrun_monitor, variables, 
+                             interval, start, stop, population_agroupate):
+        
+        if self.transient>0:
+            longrun_monitor.active = False
+        for var in variables:
+            self.recorded[var] = monitor
+            
+        if start is None:
+            start = self.transient
+        
+        self._longrun_monitor_control.append(
+            dict(start=start, stop=stop, interval=interval, 
+                 longrun_monitor=longrun_monitor, monitor=monitor, 
+                 population_agroupate=population_agroupate, files={}))
+    
+        self.net.add(longrun_monitor)    
+    
+                
+    
  
        
 @dataclass
@@ -906,7 +1029,7 @@ if __name__ == '__main__':
      
     seed = 3
     
-  
+      
     constant_stimuli = [
                         [('PC', 0), 250],
                         [('IN', 0), 200]
@@ -917,7 +1040,7 @@ if __name__ == '__main__':
                         dt=0.05,seed=seed,
                 
                         )
-    
+
                     
     # cortex = Cortex.load('AI_set1_factor_100_trial_0_network',
     #constant_stimuli, 'rk4', 0.05)

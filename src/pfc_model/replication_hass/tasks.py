@@ -4,8 +4,7 @@ from ._figures import *
 from ..cortex_setup import *
 from .._auxiliar import *
 from ..basics_setup import *
-from ..analyses_tools import*
-
+from pfc_model.analysis import*
 
 __all__ = ['task1', 'task2', 'task3', 'task4', 'task5', 'task6', 'task7',
            'task8', 'task_set']
@@ -13,8 +12,8 @@ __all__ = ['task1', 'task2', 'task3', 'task4', 'task5', 'task6', 'task7',
 @time_report()
 def task1(simulation_dir, seed=None):
     
-    Ncells=1000
-    Nstripes=1
+    n_cells=1000
+    n_stripes=1
     constant_stimuli = [
                         [('PC', 0), 250],
                         [('IN', 0), 200]
@@ -26,35 +25,65 @@ def task1(simulation_dir, seed=None):
     
     duration=31000
                           
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          transient=transient, seed=seed)
-    cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ('ALL',0),  5000, start=1000, stop=31000, population_agroupate='sum')
-    cortex.set_longrun_neuron_monitors('V', 'V', ('ALL',0),  5000, start=1000, stop=31000)
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli, method=method,
+                          dt=dt, transient=transient, seed=seed)
+    
+    cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ('ALL',0),  5000, 
+                                       start=1000, stop=31000, 
+                                       population_agroupate='sum')
+    cortex.set_longrun_neuron_monitors('V', 'V', ('ALL',0),  5000, start=1000,
+                                       stop=31000)
     
     cortex.run(duration)
     
     fig01(cortex, (duration-6000, duration), simulation_dir)
     
-    aliases = ['PC', 'fast-spiking cells','bitufted cells', 'basket cells', 'Matinotti cells']
-    Tools.get_membr_params(cortex,[('PC',0), ('IN_L_both',0), ('IN_CL_both',0), ('IN_CC',0), ('IN_F',0)], alias_list = aliases, file=simulation_dir+'//membr_params.txt');
-    Tools.get_spiking(cortex, 0.33, ('PC', 0), file=simulation_dir+'\\spiking.txt');
+    aliases = ['PC', 'fast-spiking cells','bitufted cells', 'basket cells', 
+               'Matinotti cells']
+    Tools.get_membr_params(cortex,
+                           [('PC',0), ('IN_L_both',0), ('IN_CL_both',0), 
+                            ('IN_CC',0), ('IN_F',0)], 
+                           alias_list = aliases, 
+                           file=simulation_dir+'//membr_params.txt')
+    Tools.get_spiking(cortex, 0.33, ('PC', 0), 
+                      file=simulation_dir+'\\spiking.txt')
     
-    Tools.comp_membrparam_rategroup(cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], file=simulation_dir+'\\membr_params_comparison.txt');
+    Tools.comp_membrparam_rategroup(
+        cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
+        file=simulation_dir+'\\membr_params_comparison.txt')
+    
     for channel in cortex.network.basics.syn.channels.names:
-        Tools.contingency(cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], ('ALL', 0), channel=channel,file=simulation_dir+'\\pcon_contingency_{}.txt'.format(channel) );
-        Tools.comp_synparam_rategroup(cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], ('ALL', 0), channel=channel, file=simulation_dir+'\\syn_params_comparison_{}.txt'.format(channel));
+        Tools.contingency(
+            cortex, 0.33, 
+            [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], ('ALL', 0), 
+            channel=channel,
+            file=simulation_dir+'\\pcon_contingency_{}.txt'.format(channel))
         
-    
-    spikingPC = cortex.spiking_idcs((np.greater_equal, 0.33), ('PC',0))
+        Tools.comp_synparam_rategroup(
+            cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
+            ('ALL', 0), channel=channel, 
+            file=(simulation_dir
+                  + '\\syn_params_comparison_{}.txt'.format(channel)))
+        
+    spikingPC = cortex.spiking_idcs((np.greater_equal, 0.33), ('PC', 0))
     spikingALL= cortex.spiking_idcs((np.greater_equal, 0.33), ('ALL', 0))
     
     lags = np.arange(50)
     tlim=(transient, transient+15000)
     
-    C_lags, autoC_mean, autoC_std, crossC_mean, crossC_std= Tools.get_correlations(cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags, file=simulation_dir+'\\Correlations.txt', display=True, display_interval=5)
-    ISImean, ISICV = Tools.get_ISI_stats(cortex, neuron_idcs=spikingALL, tlim=tlim,  savetxt=simulation_dir+'\\ISI_stats.txt')
+    (C_lags, autoC_mean, autoC_std, crossC_mean,
+     crossC_std) = Tools.get_correlations(
+         cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags,
+         file=simulation_dir+'\\Correlations.txt', display=True, 
+         display_interval=5)
+         
+    ISImean, ISICV = Tools.get_ISI_stats(
+        cortex, neuron_idcs=spikingALL, tlim=tlim, 
+        savetxt=simulation_dir+'\\ISI_stats.txt')
     Correlation_sigma = 1
-    fig02(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, simulation_dir)
+    fig02(ISImean, ISICV, C_lags, crossC_mean,
+          Correlation_sigma, simulation_dir)
     fig03(C_lags, autoC_mean, simulation_dir)
     
     fq, pwr = Tools.get_LFP_SPD(cortex, log=True, sigma=2)
@@ -63,10 +92,13 @@ def task1(simulation_dir, seed=None):
     if not os.path.isdir(simulation_dir+'\\Reports'):
         os.mkdir(simulation_dir+'\\Reports')
     
-    VstdALL = Tools.get_V_stats(cortex, spikingALL, file=simulation_dir + '\\Reports\\VALLstats.txt')[1]
-    VstdPC =Tools.get_V_stats(cortex, spikingPC, file=simulation_dir+'\\Reports\\VPCstats.txt')[1]
+    VstdALL = Tools.get_V_stats(
+        cortex, spikingALL, 
+        file=simulation_dir + '\\Reports\\VALLstats.txt')[1]
+    VstdPC =Tools.get_V_stats(
+        cortex, spikingPC, file=simulation_dir+'\\Reports\\VPCstats.txt')[1]
     fig05(VstdALL, VstdPC, simulation_dir)
-# 81 min and 12.52 s.
+
 @time_report()
 def task2(simulation_dir):
     
@@ -74,7 +106,8 @@ def task2(simulation_dir):
         text = f.read()
     
     
-    spike_trains = [np.asarray(train.split(',')).astype(float) for train in text.split(';')]
+    spike_trains = [np.asarray(train.split(',')).astype(float) 
+                    for train in text.split(';')]
     
     sp_train =[]
     tlim=(1000,16000)
@@ -91,18 +124,23 @@ def task2(simulation_dir):
     
     if not os.path.isdir(simulation_dir+'\\Reports'):
         os.mkdir(simulation_dir+'\\Reports')
-    ISImean, ISICV = Tools.get_ISI_stats_from_spike_trains(spike_trains, tlim=tlim,  savetxt=simulation_dir+'\\Reports\\original_ISI.txt')
+    ISImean, ISICV = Tools.get_ISI_stats_from_spike_trains(
+        spike_trains, tlim=tlim, 
+        savetxt=simulation_dir+'\\Reports\\original_ISI.txt')
     
     lags= np.arange(50)
     
     
-    C_lags, autoC_mean, autoC_std,crossC_mean, crossC_std = Tools.get_correlations_from_spike_trains(spike_trains, tlim=tlim, delta_t=2, lags=lags,file=simulation_dir+'\\Reports\\Original_spikes.txt', display=True, display_interval=5)  
-    
+    (C_lags, autoC_mean, autoC_std,crossC_mean, 
+     crossC_std) = Tools.get_correlations_from_spike_trains(
+         spike_trains, tlim=tlim, delta_t=2, lags=lags, 
+         file=simulation_dir+'\\Reports\\Original_spikes.txt', 
+         display=True, display_interval=5)  
     
     Correlation_sigma = 1
-    fig06(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, simulation_dir)
+    fig06(ISImean, ISICV, C_lags, crossC_mean,
+          Correlation_sigma, simulation_dir)
     fig07(C_lags, autoC_mean, simulation_dir)
-    
     
     time = np.load('Original_t.npy')
     Itot = np.load('Original_I.npy')
@@ -112,19 +150,19 @@ def task2(simulation_dir):
     
     Itot = Itot[unique_idc]
     frequency = 1000/0.05
-    fq, pwr = Tools.get_LFP_SPD_from_Itotarray(Itot, frequency, log=True, sigma=0)
+    fq, pwr = Tools.get_LFP_SPD_from_Itotarray(Itot, frequency, 
+                                               log=True, sigma=0)
     
     fig08(fq, pwr, simulation_dir)
 
 @time_report()
 def task3(simulation_dir, seed=None):
 
-    Ncells=1000
-    Nstripes=1
-    constant_stimuli = [
-                        [('PC', 0), 250],
-                        [('IN', 0), 200]
-                        ]
+    n_cells=1000
+    n_stripes=1
+    constant_stimuli = [[('PC', 0), 250],
+                        [('IN', 0), 200]]
+    
     method='gsl_rk2'
     dt=0.05
     transient=1000   
@@ -132,11 +170,15 @@ def task3(simulation_dir, seed=None):
     
     duration=16000
                           
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          transient=transient, seed=seed)
-    # cortex.save('networkAAA')
-    cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ('ALL',0),  5000, start=1000, stop=31000, population_agroupate='sum')
-    cortex.set_longrun_neuron_monitors('V', 'V', ('ALL',0),  5000, start=1000, stop=31000)
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli, method=method, 
+                          dt=dt, transient=transient, seed=seed)
+    
+    cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ('ALL',0),  5000, 
+                                       start=1000, stop=31000, 
+                                       population_agroupate='sum')
+    cortex.set_longrun_neuron_monitors('V', 'V', ('ALL',0),  5000, 
+                                       start=1000, stop=31000)
 
     cortex.run(duration)
     
@@ -148,11 +190,19 @@ def task3(simulation_dir, seed=None):
     tlim=(transient, transient+15000)
     if not os.path.isdir(simulation_dir+'\\Reports'):
         os.mkdir(simulation_dir+'\\Reports')
-    C_lags, autoC_mean, autoC_std, crossC_mean, crossC_std= Tools.get_correlations(cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags, file=simulation_dir+'\\Reports\\Correlationsrk2.txt', display=True, display_interval=5)
-    ISImean, ISICV = Tools.get_ISI_stats(cortex, neuron_idcs=spikingALL, tlim=tlim, savetxt=simulation_dir+'\\Reports\\ISIrk2_stats.txt')
+        
+    (C_lags, autoC_mean, autoC_std, crossC_mean, 
+     crossC_std) = Tools.get_correlations(
+         cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags, 
+         file=simulation_dir+'\\Reports\\Correlationsrk2.txt', display=True, 
+         display_interval=5)
+    ISImean, ISICV = Tools.get_ISI_stats(
+        cortex, neuron_idcs=spikingALL, tlim=tlim, 
+        savetxt=simulation_dir+'\\Reports\\ISIrk2_stats.txt')
     Correlation_sigma = 1
     
-    fig10(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, simulation_dir)
+    fig10(ISImean, ISICV, C_lags, crossC_mean,
+          Correlation_sigma, simulation_dir)
     fig11(C_lags, autoC_mean, simulation_dir)
     
     fq, pwr = Tools.get_LFP_SPD(cortex, log=True, sigma=2)
@@ -162,8 +212,8 @@ def task3(simulation_dir, seed=None):
 @time_report()
 def task4(simulation_dir, seed=None):
     
-    Ncells=1000
-    Nstripes=1
+    n_cells=1000
+    n_stripes=1
     constant_stimuli = [
                         [('PC', 0), 250],
                         [('IN', 0), 200]
@@ -175,8 +225,9 @@ def task4(simulation_dir, seed=None):
     
     duration=2500
                           
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          transient=transient, seed=seed)
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli, method=method, 
+                          dt=dt, transient=transient, seed=seed)
      
     cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL',0))
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
@@ -186,8 +237,12 @@ def task4(simulation_dir, seed=None):
     pulse1, rate1 = (2100, 2105), 100000
     gmax_reg = 0.1
     pfail_reg=0
-    cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate0, start=pulse0[0], stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    cortex.set_regular_stimuli('regular2', 1, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate1, start=pulse1[0], stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, 
+                               pcon=pCon_reg, rate=rate0, start=pulse0[0], 
+                               stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('regular2', 1, ['AMPA', 'NMDA'], PC_L23, 
+                               pcon=pCon_reg, rate=rate1, start=pulse1[0], 
+                               stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
     cortex.run(duration)
     
     fig13(cortex, pulse0, pulse1, simulation_dir)
@@ -198,16 +253,34 @@ def task4(simulation_dir, seed=None):
     delta_t=1
     
     tpulse0 = np.arange(pulse0[0], pulse0[1]+50, delta_t)
-    PCL23spikes_pulse0 = np.sum(cortex.spiking_count(neuron_idcs=PC_L23,tlim=(pulse0[0], pulse0[0]+50), delta_t=delta_t), axis=0)
-    PCL5spikes_pulse0 = np.sum(cortex.spiking_count(neuron_idcs=PC_L5,tlim=(pulse0[0], pulse0[0]+50), delta_t=delta_t), axis=0)
+    PCL23spikes_pulse0 = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L23,tlim=(pulse0[0], pulse0[0]+50), 
+            delta_t=delta_t), 
+        axis=0)
+    PCL5spikes_pulse0 = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L5,tlim=(pulse0[0], pulse0[0]+50), 
+            delta_t=delta_t), 
+        axis=0)
     
     tpulse1 = np.arange(pulse1[0], pulse1[1]+50, delta_t)
-    PCL23spikes_pulse1 = np.sum(cortex.spiking_count(neuron_idcs=PC_L23,tlim=(pulse1[0], pulse1[0]+50), delta_t=delta_t), axis=0)
-    PCL5spikes_pulse1 = np.sum(cortex.spiking_count(neuron_idcs=PC_L5,tlim=(pulse1[0], pulse1[0]+50), delta_t=delta_t), axis=0)
+    PCL23spikes_pulse1 = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L23, tlim=(pulse1[0], pulse1[0]+50),
+            delta_t=delta_t), 
+        axis=0)
+    PCL5spikes_pulse1 = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L5, tlim=(pulse1[0], pulse1[0]+50), 
+            delta_t=delta_t), 
+        axis=0)
+    
     if not os.path.isdir(simulation_dir+'\\Reports'):
         os.mkdir(simulation_dir+'\\Reports')
         
-    with open(simulation_dir+'\\Reports\\Regularpulses_spikingcounts.txt', 'w') as f:
+    with open(simulation_dir+'\\Reports\\Regularpulses_spikingcounts.txt',
+              'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -221,13 +294,15 @@ def task4(simulation_dir, seed=None):
         time_spikes = list(zip(tpulse0, PCL23spikes_pulse0))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse0)), end='\n\n', file=f)
+        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse0)), 
+              end='\n\n', file=f)
         
         print('Spike count on PC_L5', file=f)
         time_spikes = list(zip(tpulse0, PCL5spikes_pulse0))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse0)), end='\n\n', file=f)
+        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse0)), 
+              end='\n\n', file=f)
         
         
         print('Pulse1', file=f)
@@ -238,33 +313,35 @@ def task4(simulation_dir, seed=None):
         time_spikes = list(zip(tpulse1, PCL23spikes_pulse1))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse1)), end='\n\n', file=f)
+        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse1)), 
+              end='\n\n', file=f)
         
         print('Spike count on PC_L5', file=f)
         time_spikes = list(zip(tpulse1, PCL5spikes_pulse1))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse1)), end='\n\n', file=f)
+        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse1)), 
+              end='\n\n', file=f)
         
 @time_report()
 def task5(simulation_dir, seed=None):
     basics_scales = {
-        'membr_param_std': [(dict(param=membranetuple._fields, group=group_sets['ALL']), 0.8)]
-        }
+        'membr_param_std': [(dict(par=membranetuple._fields, 
+                                  group=group_sets['ALL']), 0.8)]}
 
-    Ncells=1000
-    Nstripes=1
-    constant_stimuli = [
-                        [('PC', 0), 250],
-                        [('IN', 0), 200]
-                        ]
+    n_cells=1000
+    n_stripes=1
+    constant_stimuli = [[('PC', 0), 250],
+                        [('IN', 0), 200]]
     method='rk4'
     dt=0.01
     transient=1000   
     seed = seed
                           
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          basics_scales=basics_scales, transient=transient, seed=seed)
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli, method=method, 
+                          dt=dt, basics_scales=basics_scales, 
+                          transient=transient, seed=seed)
     
     
     duration=1200 
@@ -277,7 +354,9 @@ def task5(simulation_dir, seed=None):
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
     PC_L5 = cortex.neuron_idcs(('PC_L5',0))
     
-    cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate, start=pulse[0], stop=pulse[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, 
+                               pcon=pCon_reg, rate=rate, start=pulse[0], 
+                               stop=pulse[1], gmax=gmax_reg, pfail=pfail_reg)
     
     cortex.run(duration)
     
@@ -286,13 +365,22 @@ def task5(simulation_dir, seed=None):
     delta_t=1
     
     tpulse = np.arange(pulse[0], pulse[0]+50, delta_t)
-    PCL23spikes_pulse = np.sum(cortex.spiking_count(neuron_idcs=PC_L23,tlim=(pulse[0], pulse[0]+50), delta_t=delta_t), axis=0)
-    PCL5spikes_pulse = np.sum(cortex.spiking_count(neuron_idcs=PC_L5,tlim=(pulse[0], pulse[0]+50), delta_t=delta_t), axis=0)
+    PCL23spikes_pulse = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L23,tlim=(pulse[0], pulse[0]+50), 
+            delta_t=delta_t), 
+        axis=0)
+    PCL5spikes_pulse = np.sum(
+        cortex.spiking_count(
+            neuron_idcs=PC_L5,tlim=(pulse[0], pulse[0]+50), 
+            delta_t=delta_t),
+        axis=0)
     
     if not os.path.isdir(simulation_dir+'\\Reports'):
         os.mkdir(simulation_dir+'\\Reports')
         
-    with open(simulation_dir+'\\Reports\\Regularpulses_reducedstd__spikingcounts.txt', 'w') as f:
+    with open(simulation_dir+'\\Reports\\Regularpulses_'
+              + 'reducedstd__spikingcounts.txt', 'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -306,13 +394,15 @@ def task5(simulation_dir, seed=None):
         time_spikes = list(zip(tpulse, PCL23spikes_pulse))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse)), end='\n\n', file=f)
+        print('Total spikes on PC_L23: {}'.format(np.sum(PCL23spikes_pulse)),
+              end='\n\n', file=f)
         
         print('Spike count on PC_L5', file=f)
         time_spikes = list(zip(tpulse, PCL5spikes_pulse))
         for i in range(len(time_spikes)):
             print('t: {} ms, spikes: {}'.format(*time_spikes[i]), file=f)
-        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse)), end='\n\n', file=f)
+        print('Total spikes on PC_L5: {}'.format(np.sum(PCL5spikes_pulse)),
+              end='\n\n', file=f)
 
 @time_report()
 def task6(simulation_dir, seed=None):
@@ -338,8 +428,8 @@ def task6(simulation_dir, seed=None):
     
     
 
-    Ncells=1000
-    Nstripes=1
+    n_cells=1000
+    n_stripes=1
     constant_stimuli = [
                         [('PC', 0), 250],
                         [('IN', 0), 200]
@@ -350,21 +440,28 @@ def task6(simulation_dir, seed=None):
         for std in range(len(Membr_std_list)):
             print_out1a = '||   REPORT: Trial ' + str(trial)
             print_out2a = '||   REPORT: std_scale ' + str(Membr_std_list[std])
-            print_out1 = print_out1a + ' '*(max(len(print_out1a), len(print_out2a)) - len(print_out1a)) + '   ||'
-            print_out2 = print_out2a + ' '*(max(len(print_out1a), len(print_out2a)) - len(print_out2a)) + '   ||'
+            print_out1 = (print_out1a 
+                          + ' '*(max(len(print_out1a), len(print_out2a)) 
+                                 - len(print_out1a)) 
+                          + '   ||')
+            print_out2 = (print_out2a 
+                          + ' '*(max(len(print_out1a), len(print_out2a)) 
+                                 - len(print_out2a)) 
+                          + '   ||')
             print("="*len(print_out1))
             print(print_out1)
             print(print_out2)
             print("="*len(print_out1))
             
-            basics_scales = {
-                'membr_param_std': [
-                    (dict(param=membranetuple._fields,  group=group_sets['ALL']), Membr_std_list[std])
-                    ]
-                }
+            basics_scales = {'membr_param_std': [
+                (dict(par=membranetuple._fields,  group=group_sets['ALL']),
+                 Membr_std_list[std])]}
 
-            cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                                  basics_scales=basics_scales, transient=transient, seed=seed)
+            cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                                  constant_stimuli=constant_stimuli, 
+                                  method=method, dt=dt, 
+                                  basics_scales=basics_scales, 
+                                  transient=transient, seed=seed)
             
             
             
@@ -377,28 +474,31 @@ def task6(simulation_dir, seed=None):
             gmax_reg = 0.1
             pfail_reg=0
             
-            cortex.set_regular_stimuli('regular', 1, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate, start=pulse[0], stop=pulse[1], gmax=gmax_reg, pfail=pfail_reg)
+            cortex.set_regular_stimuli(
+                'regular', 1, ['AMPA', 'NMDA'], PC_L23, pcon=pCon_reg, 
+                rate=rate, start=pulse[0], stop=pulse[1], gmax=gmax_reg, 
+                pfail=pfail_reg)
  
             cortex.run(duration)        
  
-            
-            
-            
-            
-            PC_L23_results[std].append(np.sum(cortex.spiking_count(neuron_idcs=PC_L23,tlim=(pulse[0], pulse[0]+50))))
-            PC_L5_results[std].append(np.sum(cortex.spiking_count(neuron_idcs=PC_L5,tlim=(pulse[0], pulse[0]+50))))
+            PC_L23_results[std].append(
+                np.sum(
+                    cortex.spiking_count(neuron_idcs=PC_L23, 
+                                         tlim=(pulse[0], pulse[0]+50))))
+            PC_L5_results[std].append(
+                np.sum(
+                    cortex.spiking_count(neuron_idcs=PC_L5, 
+                                         tlim=(pulse[0], pulse[0]+50))))
 
     fig15(Membr_std_list, PC_L23_results, PC_L5_results, simulation_dir)
 
 @time_report()
 def task7(simulation_dir, seed=None):
 
-    Ncells=1000
-    Nstripes=1
-    constant_stimuli = [
-                        [('PC', 0), 250],
-                        [('IN', 0), 200]
-                        ]
+    n_cells=1000
+    n_stripes=1
+    constant_stimuli = [[('PC', 0), 250],
+                        [('IN', 0), 200]]
     method='rk4'
     dt=0.05
     transient=1000   
@@ -406,8 +506,9 @@ def task7(simulation_dir, seed=None):
     
     duration=3000
     
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          transient=transient, seed=seed)
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli,method=method, 
+                          dt=dt, transient=transient, seed=seed)
      
     
     pCon_reg = 0.1
@@ -420,8 +521,12 @@ def task7(simulation_dir, seed=None):
     PC_L5 = cortex.neuron_idcs(('PC_L5',0))
     
     
-    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate, start=pulse0[0], stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, pCon=pCon_reg, rate=rate, start=pulse1[0], stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23,
+                               pcon=pCon_reg, rate=rate, start=pulse0[0], 
+                               stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, 
+                               pcon=pCon_reg, rate=rate, start=pulse1[0], 
+                               stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
     
     cortex.run(duration)
     
@@ -430,11 +535,12 @@ def task7(simulation_dir, seed=None):
 @time_report()
 def task8(simulation_dir, seed=None):
     
-    basics_scales = {'gmax_mean': [(dict(target=group_sets['ALL'], source=group_sets['IN']), 0.4)]}
+    basics_scales = {'gmax_mean': [(dict(target=group_sets['ALL'], 
+                                         source=group_sets['IN']), 0.4)]}
     
     
-    Ncells=1000
-    Nstripes=1
+    n_cells=1000
+    n_stripes=1
     constant_stimuli = [
                         [('PC', 0), 250],
                         [('IN', 0), 200]
@@ -446,10 +552,11 @@ def task8(simulation_dir, seed=None):
     
     duration=3000
     
-    cortex = Cortex.setup(Ncells=Ncells, Nstripes=Nstripes, constant_stimuli=constant_stimuli,method=method, dt=dt,
-                          basics_scales=basics_scales, transient=transient, seed=seed)
-     
-    
+    cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
+                          constant_stimuli=constant_stimuli,method=method, 
+                          dt=dt, basics_scales=basics_scales, 
+                          transient=transient, seed=seed)
+       
     pCon_reg = 0.1
     pulse0=(1100, 1200)
     pulse1=(2100, 2200)
@@ -459,8 +566,12 @@ def task8(simulation_dir, seed=None):
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
     PC_L5 = cortex.neuron_idcs(('PC_L5',0))
     
-    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23, pCon=pCon_reg, rate=rate, start=pulse0[0], stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, pCon=pCon_reg, rate=rate, start=pulse1[0], stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23, 
+                               pcon=pCon_reg, rate=rate, start=pulse0[0], 
+                               stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
+    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, 
+                               pcon=pCon_reg, rate=rate, start=pulse1[0], 
+                               stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
 
     cortex.run(duration)
     
