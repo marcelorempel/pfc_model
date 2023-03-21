@@ -275,7 +275,7 @@ _membcov_norm.loc[dict(group=group_sets['IN_CL_both'])] = np.matrix([
     [0.5856, -0.4942, -0.0922, -0.1039, 0.2159, 1.0000, 0.0587, -0.4724,
      0.0957],
     [0.2077, -0.4389, 0.2129, -0.5507, -0.7123, 0.0587, 1.0000, -0.3395,
-     -0.5780],
+     0.5780],
     [0.0171, 0.6950, -0.3566, 0.7230, 0.0193, -0.4724, -0.3395, 1.0000,
      -0.1084],
     [-0.4079, 0.0811, 0.4204, 0.0775, 0.8494, 0.0957, -0.5780, -0.1084,
@@ -430,7 +430,7 @@ _membpar_min.loc[dict(par='delta_T', group=['PC_L23', 'IN_CC_L23'])] = 10.5568
 _membpar_min.loc[dict(par='delta_T', group=group_sets['IN_L_both'])] = 2.1840
 _membpar_min.loc[dict(par='delta_T', group=group_sets['IN_CL_both'])] = 11.0503
 _membpar_min.loc[dict(par='delta_T', group=group_sets['IN_F'])] = 1.8285
-_membpar_min.loc[dict(par='delta_T', group=['PC_L5', 'IN_CC_L5'])] = 12.7969
+_membpar_min.loc[dict(par='delta_T', group=['PC_L5', 'IN_CC_L5'])] = 12.796
 
 _membpar_min.loc[dict(par='V_up', group=['PC_L23', 'IN_CC_L23'])] = -62.5083
 _membpar_min.loc[dict(par='V_up', group=group_sets['IN_L_both'])] = -60.6745
@@ -1476,10 +1476,9 @@ if __name__ == '__main__':
     n1=1000
     n_stripes=1
 
-    # membr_param_std = [(dict(group=group_sets['ALL'], 
-    #                          par=_membpar_names), 1)]
-    # basics_scales = {'membr_param_std': membr_param_std}
+    membr_param_std = [(dict(group=group_sets['ALL'], 
+                             par=_membpar_names), 1)]
+    basics_scales = {'membr_param_std': membr_param_std}
 
-    _basics = basics_setup(n1, n_stripes)
-                          #  , basics_scales=basics_scales, 
-                          # disp=False)
+    basics = basics_setup(n1, n_stripes, basics_scales=basics_scales, 
+                          disp=False)
