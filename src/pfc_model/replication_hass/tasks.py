@@ -2,7 +2,7 @@ import numpy as np
 import os
 from ._figures import *
 from ..cortex_setup import *
-from .._auxiliar import *
+from .._auxiliary import *
 from ..basics_setup import *
 from pfc_model.analysis import*
 

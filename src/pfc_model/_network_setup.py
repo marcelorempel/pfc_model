@@ -1,3 +1,14 @@
+""" This script sets the network structure and parameters based on
+basics data set in _basics_setup.
+
+This module contains:
+    
+    network_setup: a function that sets network structure and
+    parameters.
+    
+    Network: a class that holds network data.
+"""
+
 import numpy as np
 import xarray as xr
 from dataclasses import dataclass
@@ -6,8 +17,8 @@ import os
 import shutil
 import json
 from importlib import import_module
-from ._auxiliar import time_report, BaseClass
-from ._network_auxiliar import *
+from ._auxiliary import time_report, BaseClass
+from ._network_auxiliary import *
 from ._basics_setup import *
 
 __all__ = ['network_setup', 'Network']
@@ -15,8 +26,27 @@ __all__ = ['network_setup', 'Network']
 filterwarnings("ignore", category=RuntimeWarning) 
 
 @time_report('Network setup')
-def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
+def network_setup(n_cells_prompted, n_stripes=1, basics_scales=None, seed=None,
                   alternative_pcells=None, basics_disp=True):   
+    """Set network structure and information. Return Network object.
+    
+    Parameters
+    ----------
+    n_cells_prompted: int
+        Number of requestes cells in stripe.
+    n_stripes: int, optional
+        Number of stripes. If not given, defaults to 1.
+    basics_scale: dict, optional
+        Parameter scales. If not given, no scale is applied.
+    seed: int, optional
+        Random seed. If not given, no random seed is set.
+    alternative_pcells: array_like, optional
+        Alternative cell distribution. If not given, the same default
+        of basics_setup is used.
+    basics_disp: bool, optional
+        Set basics display. If not given, warning display may be
+        displayed.
+    """
     
     np.random.seed(seed)
 
@@ -60,7 +90,6 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
  
     group_distr = [[[] for j in range(basics.struct.groups.n)] 
                    for i in range (n_stripes)]
-
     group_names = basics.struct.groups.names
     
     n_syn_current = 0
@@ -68,53 +97,23 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
     for stripe in index_stripes:   
         for group in group_names:
             Ncell_new = int(basics.struct.n_cells_per_group.loc[group].values)
-            set_current = np.arange(Ncell_new).astype(int)+n_cell_current
-            n_cell_current += Ncell_new
-          
+            set_current = np.arange(Ncell_new).astype(int)+n_cell_current               
             group_distr[stripe][group_names.index(group)].extend(set_current)
-            set_new = set_current
-            
-            for trial in range(1000):
-                
-                multi_mean = basics.membr.mean.loc[dict(group=group)].values
-                multi_cov = basics.membr.covariance.loc[dict(group=group)]
-                multi_N = len(set_new)
-                
-                param_transf = np.random.multivariate_normal(
-                    multi_mean, multi_cov, multi_N).transpose()
-                
-                param_transf = xr.DataArray(
-                    param_transf, 
-                    coords=[basics.membr.names, set_new], 
-                    dims=['par', 'cell_index'])
-                
-                multi_lambda_ = basics.membr.lambd.loc[dict(group=group)]
-                multi_minparam_inv = basics.membr.min.loc[dict(group=group)]
-                
-                membr_params, set_new = set_membr_params(
-                    membr_params, set_new, set_current, param_transf, 
-                    multi_lambda_, multi_minparam_inv, basics, group)  
-
-                if len(set_new)==0:                             
-                    break
-
-            else:
-                raise ValueError('ERROR: Number of trials for the full '
-                                 'multivariate distribution has been '
-                                 'exceeded.\n')
-                   
+            membr_params = set_membr_params(membr_params, set_current,
+                                            group, basics)  
+            n_cell_current += Ncell_new
+                 
             for cell in set_current:
                 memb = membranetuple(
-                    *membr_params.loc[dict(cell_index=cell)].to_numpy())                
-              
+                    *membr_params.loc[dict(cell_index=cell)].to_numpy())                          
                 i_refractory[cell] = get_iref(memb)
                 
-        group_distr = redistribute(basics, group_distr, membr_params, stripe)
-         
-        
+        group_distr = redistribute(group_distr, stripe, membr_params, basics)
+               
         for group in group_names:
             set_current = group_distr[stripe][group_names.index(group)]  
             pcon = float(basics.struct.conn.pcon.loc[group, group].values)
+            
             if len(set_current) > 0:
                 if basics.struct.conn.cluster.loc[group, group] == 1:
                     target_source, syn_idc = setcon_commneigh(
@@ -124,10 +123,18 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                         n_syn_current, set_current, set_current, pcon)         
                     
                 if len(syn_idc) > 0:
-                    syn_params, syn_pairs, n_syn_current = set_syn_params(
-                        basics, 1, 1, group, group, syn_idc, target_source, 
-                        syn_params, syn_pairs, n_syn_current)
-                       
+                    syn_params = set_syn_params(
+                        syn_params, syn_idc, group, group, basics)
+                    
+                    channels_curr = basics.syn.channels.kinds_to_names[
+                        str(basics.syn.kinds.loc[
+                            group, group].values)]
+                    
+                    for channel in channels_curr:
+                        syn_pairs = np.concatenate(
+                            (syn_pairs, target_source), axis=1)
+                        n_syn_current += len(syn_idc) 
+                    
         for group_tgt in group_names:
             set_current_target = (group_distr[stripe]
                                   [group_names.index(group_tgt)])
@@ -145,21 +152,27 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                         pcon)
                     
                     if target_source.shape[1] > 0:
-                        syn_params, syn_pairs, n_syn_current = set_syn_params(
-                             basics, 1, 1, group_tgt, group_src, syn_idc, 
-                             target_source, syn_params, syn_pairs,
-                             n_syn_current)
+                        syn_params = set_syn_params(
+                             syn_params, syn_idc, group_tgt, group_src, basics)
                         
-    
+                        channels_curr = basics.syn.channels.kinds_to_names[
+                            str(basics.syn.kinds.loc[
+                                group_tgt, group_src].values)]
+          
+                        for channel in channels_curr:
+                            syn_pairs = np.concatenate(
+                                (syn_pairs, target_source), axis=1)
+                            n_syn_current += len(syn_idc) 
+                        
     # # # ------------------ Define inter-stripe connections ------------------
     
-    if n_stripes>1:
+    if n_stripes > 1:
        
         for inter_set in basics.struct.stripes.inter:
             inter_dict = basics.struct.stripes.inter[inter_set]
             
             group_tgt, group_src = inter_dict['pair']
-            pcon  = float(
+            pcon = float(
                 basics.struct.conn.pcon.loc[group_tgt, group_src].values)
             
             for stripe in range(n_stripes):             
@@ -187,11 +200,19 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
                         gmax_fac = np.exp(-dist_act
                                           /inter_dict['coefficient_0'])
                         delay_fac = inter_dict['coefficient_1']*dist_act
-                                          
-                        syn_params, syn_pairs, n_syn_current = set_syn_params(
-                             basics, gmax_fac, delay_fac, group_tgt, group_src,
-                             syn_idc, target_source, syn_params, syn_pairs, 
-                             n_syn_current)
+        
+                        syn_params = set_syn_params(
+                            syn_params, syn_idc, group_tgt, group_src,
+                            basics, gmax_fac, delay_fac)
+                        
+                        channels_curr = basics.syn.channels.kinds_to_names[
+                            str(basics.syn.kinds.loc[
+                                group_tgt, group_src].values)]
+                        
+                        for channel in channels_curr:
+                            syn_pairs = np.concatenate(
+                                (syn_pairs, target_source), axis=1)
+                            n_syn_current += len(syn_idc) 
                         
     syn_params['channel'] = xr.DataArray(
         syn_params['channel'], 
@@ -220,6 +241,23 @@ def network_setup(n_cells_prompted, n_stripes, basics_scales=None, seed=None,
 
 @dataclass
 class Network(BaseClass):
+    """This class stores network data. It is a subclass of BaseClass.
+    
+    Attributes
+    ----------
+    membr_params: membrane parameters.
+    
+    refractory_current: refractory currents.
+    
+    syn_params: synaptic parameters.
+    
+    group_distr: distribution of neuron indices among groups.
+    
+    seed: random seed.
+    
+    basics: BaseClass instance.
+    """
+    
     membr_params: xr.DataArray
     refractory_current: xr.DataArray
     syn_params: dict
@@ -229,17 +267,38 @@ class Network(BaseClass):
     basics: BaseClass
     
     def rheobase(self, neuron_idcs=None):
+        """Retrieve rheobase current from neurons.
+        
+        Parameter
+        ---------
+        neuron_idcs: array_like, optional
+            Indices of neurons whose rheobase is requested. If not
+            given, the rheobase value of all neurons is retrived.
+        
+        Returns
+        -------
+        Out: nd.array
+            Values of rheobase.
+        """
         g_L, V_T, E_L, delta_T = self.membr_params.loc[
             dict(par=['g_L', 'V_T', 'E_L', 'delta_T'])
             ]
         i_rheo =  self.basics.equations.rheobase(g_L, V_T, E_L, delta_T)
         
         if neuron_idcs is not None:
+            neuron_idcs = np.asarray(neuron_idcs)
             i_rheo = i_rheo.loc[dict(cell_index=neuron_idcs)]
         
         return i_rheo.values
 
     def save(self, path):
+        """Save network data into files.
+        
+        Parameter
+        ---------
+        path: str
+            Path where data will be stored.
+        """
         if not os.path.isdir(path):
             os.mkdir(path)
         self.membr_params.to_netcdf(os.path.join(path,'membr_params.nc'))
@@ -279,6 +338,23 @@ class Network(BaseClass):
                 
            
     def load(path, alternative_pcells=None, basics_disp=True):
+        """Load data from previously generated network.
+        
+        Parameter
+        ---------
+        alternative_pcells: array_like, optional
+            Alternative cell distribution. If not given, the same default
+            of basics_setup is used.
+        basics_disp: str
+            Set basics display. If not given, warning display may be
+            displayed.
+            
+        Return
+        ------
+        Out: Network
+            Network object holding data from previsouly generated 
+            network.
+        """
         
         print('REPORT: Loading Network from {}'.format(path), end='\n\n')
         
@@ -344,6 +420,19 @@ class Network(BaseClass):
                        syn_pairs, group_distr, seed, basics)
          
     def group_idcs(self, group):
+        """Retrieve indices corresponding to the given groups.
+        
+        Parameters
+        ----------
+        group:str or int
+            Index or name of requested group or set of groups (as in 
+            group_sets in _basics_setup).
+        
+        Returns
+        -------
+        Out: list
+            List of indices from requested groups. 
+        """
         if isinstance(group, str):
             names = []
             for gr in self.basics.struct.groups.sets[group]:
@@ -353,6 +442,19 @@ class Network(BaseClass):
             return [group]
         
     def neuron_idcs(self, groupstripe_list):
+        """Retrieve indices from neurons corresponding to the
+        given group and stripe.
+        
+        Parameters
+        ----------
+        groupstripe_list: list
+            List of requested groups and stripes.
+        
+        Returns
+        -------
+        Out: np.array
+            Array of neuron indices.
+        """
         
         if isinstance(groupstripe_list[0], (str,int)):
             groupstripe_list = [groupstripe_list]
@@ -367,6 +469,23 @@ class Network(BaseClass):
         return np.array(neuron_idcs)
     
     def syn_idcs_from_neurons(self, target, source, channel=None):
+        """Synaptic indices from neuron information.
+        
+        Parameters
+        ----------
+        target: array_like
+            Indices of post-synaptic neurons.
+        source: array_like
+            Indices of pre-synaptic neurons.
+        channels: str, optional
+            Name of requested synaptic channel. If not given,
+            default to all synapses.
+            
+        Returns
+        -------
+        Out: array
+            Requested synaptic indices.
+        """
         
         syn_idcs = np.arange(self.syn_pairs.shape[1])
         target_isin = np.isin(self.syn_pairs[0,:], np.array(target))
@@ -393,6 +512,23 @@ class Network(BaseClass):
     
     def syn_idcs_from_groups(self, tgt_groupstripe_list, src_groupstripe_list,
                              channel=None):
+        """Synaptic indices from group information.
+        
+        Parameters
+        ----------
+        tgt_groupstripe_list: list
+            Group and stripe of post-synaptic neurons.
+        source: array_like
+            Group and stripe of pre-synaptic neurons.
+        channels: str, optional
+            Name of requested synaptic channel. If not given,
+            default to all synapses.
+            
+        Returns
+        -------
+        Out: array
+            Requested synaptic indices.
+        """
         
         if isinstance(tgt_groupstripe_list[0], (str,int)):
             tgt_groupstripe_list = [tgt_groupstripe_list]
@@ -466,7 +602,7 @@ if __name__ == '__main__':
     # group_sets = [[('PC_L23',0), ('IN_CC_L23', 0)],
     #[('PC_L5',0), ('IN_CC_L5', 0)], [('IN_L_both', 0)], 
     #[('IN_CL_both')], [('IN_F',0)] ]
-    network.save('new_test')
+    # network.save('new_test')
     # network.save('new_5000')
     # for group in group_sets:
     pass

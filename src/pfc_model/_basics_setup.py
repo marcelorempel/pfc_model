@@ -17,11 +17,14 @@ from dataclasses import dataclass, field
 from numpy.matlib import repmat
 from collections import namedtuple
 import brian2 as br2
-from ._auxiliar import *
+from ._auxiliary import *
 
 
 __all__ = ['basics_setup', 'membranetuple', 'group_sets']
 
+#################################################
+########## Set network basic structure ##########
+#################################################
 
 # Define the name and the kind (here, excitatory or inhibitory)
 # of each group; all groups have to be declared here. 
@@ -151,6 +154,46 @@ group_sets = {
     'IN_CC_L5': ['IN_CC_L5'],
     'IN_F_L5': ['IN_F_L5']}
 
+# Setup for inter-stripe connections (for simulations with more than 1 stripe)
+_interstripe_sets ={}
+_interstripe_sets['A']={
+    'pair': ['PC_L23','PC_L23'],
+    'coefficient_0': 0.909,
+    'coefficient_1': 1.4587,
+    'connections': [-4, -2, 2, 4]}
+
+_interstripe_sets['B']={
+    'pair': ['PC_L5','IN_CC_L5'],
+    'coefficient_0': 0.909,
+    'coefficient_1': 1.0375,
+    'connections':[-1, 1]}
+
+_interstripe_sets['C']={
+    'pair':  ['PC_L5', 'IN_F_L5'],
+    'coefficient_0': 0.909,
+    'coefficient_1': 1.0375,
+    'connections': [-1, 1]}
+
+############################################
+########## Set channel parameters ##########
+############################################
+
+# Define channel parameters
+# in ms and mV
+_ampa_par = np.array([1.4, 10, 0, 0, 0, 0], dtype='float64') 
+_gaba_par = np.asarray([3, 40, -70, 0, 0, 0], dtype='float64') 
+_nmda_par = np.array([4.3, 75, 0, 1, 0.0625, 0], dtype='float64')
+
+_channel_par = xr.DataArray(
+    data=np.asarray([_ampa_par, _gaba_par, _nmda_par]), 
+    coords=[list(_channel_names), _channelpar_names], 
+    dims=['channel', 'par'],
+    name='channel par')
+
+
+#############################################
+########## Set membrane parameters ##########
+#############################################
 
 # Mean of parameters in the transformed space
 _membpar_mean = xr.DataArray(
@@ -214,7 +257,7 @@ _membpar_mean.loc[dict(par='V_T', group=group_sets['IN_F'])] = 3.0701
 _membpar_mean.loc[dict(par='V_T', group=['PC_L5', 'IN_CC_L5'])] = 3.3302
 
 # DataArray holding normalized matrices of membrane parameters  
-# in tthe ransformed space
+# in the transformed space
 _membcov_norm = xr.DataArray(
     np.zeros((len(_group_names), len(_membpar_names), len(_membpar_names))),
     coords=[_group_names, _membpar_names, _membpar_names], 
@@ -400,7 +443,6 @@ _membpar_lambd_transf.loc[dict(group=group_sets['IN_F'])] = np.asarray([[
 _membpar_lambd_transf.loc[dict(group=['PC_L5', 'IN_CC_L5'])] = np.asarray([[
     0.23, 0.01, 0, 0.13, 0.02, 0, 0, 0, 0]]).T
 
-
 # Minimum of each membrane parameter in the inverted (original) space
 _membpar_min = xr.DataArray(
     data=np.zeros((len(_membpar_names), len(_group_names))),
@@ -549,26 +591,9 @@ _membtau_max.loc[dict(group=group_sets['IN_CL_both'])] = 25.9839
 _membtau_max.loc[dict(group=group_sets['IN_F'])] = 48.7992
 _membtau_max.loc[dict(group=['PC_L5', 'IN_CC_L5'])] = 67.7062
 
-
-# Setup for inter-stripe connections (for simulations with more than 1 stripe)
-_interstripe_sets ={}
-_interstripe_sets['A']={
-    'pair': ['PC_L23','PC_L23'],
-    'coefficient_0': 0.909,
-    'coefficient_1': 1.4587,
-    'connections': [-4, -2, 2, 4]}
-
-_interstripe_sets['B']={
-    'pair': ['PC_L5','IN_CC_L5'],
-    'coefficient_0': 0.909,
-    'coefficient_1': 1.0375,
-    'connections':[-1, 1]}
-
-_interstripe_sets['C']={
-    'pair':  ['PC_L5', 'IN_F_L5'],
-    'coefficient_0': 0.909,
-    'coefficient_1': 1.0375,
-    'connections': [-1, 1]}
+######################################
+########## Set connectivity ##########
+######################################
 
 # Connection probabilities for each pair 
 # pre- (source) and post- (target) synaptic
@@ -649,6 +674,31 @@ _syn_clusterflag = xr.DataArray(
 _syn_clusterflag.loc[dict(target='PC_L23', source='PC_L23')] = 1
 _syn_clusterflag.loc[dict(target='PC_L5', source='PC_L5')] = 1
 
+#############################################
+########## Set synaptic parameters ##########
+#############################################
+
+_synapse_kind = xr.DataArray(
+    data=np.array([[tp for tp in _group_kinds.values()] 
+                   for i in range(len(_group_names))]),
+    coords=[_group_names, _group_names], 
+    dims=['target', 'source'],
+    name='synapse kinds')
+
+# Define synaptic parameters directly associated to spiking activity and its 
+# units and values; here, they are gmax (synaptic strength) and pfail.
+_synspike_par = {'gmax': dict(unit='nS', value='gmax'), 
+                'pfail': dict(unit=1, value='pfail')}
+
+_synspike_par_names = list(_synspike_par.keys())
+
+# Auxiliary synaptic parameters/variables and its units
+_synaux_par = {'failure': dict(unit=1), 'gsyn_amp': dict(unit=1)}
+_synaux_par_names = list(_synaux_par.keys())
+
+### STSP parameters
+### ---------------
+
 # Define STSP parameters and its units and values
 _stsp_par_dict = {'U': dict(unit=1, value='U'), 
                   'tau_rec': dict(unit='ms', value='tau_rec'), 
@@ -666,24 +716,6 @@ _stsp_all_dict = _stsp_par_dict | _stsp_var_dict
 # _stsp_par_dict and _stsp_all_dict
 _stsp_par_names = list(_stsp_par_dict.keys())
 _stsp_all_names = list(_stsp_all_dict.keys())
-
-# _stsp_par_statmeasures= [
-#     '{}_{}'.format(var, stat) for stat in ['mean', 'std'] 
-#     for var in _stsp_par_names]
-# _stsp_par_mean = ['{}_mean'.format(var) for var in _stsp_par_names]
-# _stsp_par_std = ['{}_std'.format(var) for var in _stsp_par_names]
-
-# Define synaptic parameters directly associated to spiking activity and its 
-# units and values; here, they are gmax (synaptic strength) and pfail.
-_synspike_par = {'gmax': dict(unit='nS', value='gmax'), 
-                'pfail': dict(unit=1, value='pfail')}
-
-_synspike_par_names = list(_synspike_par.keys())
-
-# Auxiliary synaptic parameters/variables and its units
-_synaux_par = {'failure': dict(unit=1), 'gsyn_amp': dict(unit=1)}
-_synaux_par_names = list(_synaux_par.keys())
-
 
 # Types of STSP and corresponding mean and standard deviation of their
 # parameters
@@ -769,6 +801,9 @@ _stsp_set_distrib.loc[
 _stsp_set_distrib.loc[
     dict(target=group_sets['IN_L5'], source=group_sets['IN_L5'])] = 'F'
 
+### Delay
+### -----
+
 # Define synaptic delay mean
 _syn_delay = xr.DataArray(
     data=np.zeros((len(_group_names), len(_group_names))), 
@@ -793,6 +828,58 @@ _syn_delay.loc[
     dict(target=group_sets['IN_L23'], source=group_sets['IN_L23'])] = 1.1
 _syn_delay.loc[
     dict(target=group_sets['IN_L5'], source=group_sets['IN_L5'])] = 1.1
+
+# Define delay standard deviation
+_syn_delay_sigma = xr.DataArray(
+    data=np.zeros((len(_group_names), len(_group_names))),
+    coords=[_group_names, _group_names], 
+    dims=['target', 'source'],
+    name='delay sigma')
+
+_syn_delay_sigma.loc[dict(target='PC_L23', source='PC_L23')] = 0.3095
+_syn_delay_sigma.loc[dict(target='PC_L23', source='PC_L5')] = 0.1825
+_syn_delay_sigma.loc[dict(target='PC_L5', source='PC_L23')] = 0.1651
+_syn_delay_sigma.loc[dict(target='PC_L5', source='PC_L5')] = 0.4350  
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L23'], source='PC_L23')] = 0.2489
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L23'], source='PC_L5')]  = 0.0839
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L5'], source='PC_L23')]  = 0.1327
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L5'], source='PC_L5')] = 0.2000
+_syn_delay_sigma.loc[
+    dict(target='PC_L23', source=group_sets['IN_L23'])] = 0.1786
+_syn_delay_sigma.loc[
+    dict(target='PC_L23', source=group_sets['IN_L5'])] = 0.0394
+_syn_delay_sigma.loc[
+    dict(target='PC_L5', source=group_sets['IN_L23'])] = 0.0940
+_syn_delay_sigma.loc[
+    dict(target='PC_L5', source=group_sets['IN_L5'])] = 0.0940
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L23'], source=group_sets['IN_L23'])] = 0.4
+_syn_delay_sigma.loc[
+    dict(target=group_sets['IN_L5'], source=group_sets['IN_L5'])] = 0.4
+
+# Define delay minimum
+_syn_delay_min = xr.DataArray(
+    data=np.zeros((len(_group_names), len(_group_names))),
+    coords=[_group_names, _group_names],
+    dims=['target', 'source'],
+    name='Delay min')
+  
+# Define delay maximum
+_syn_delay_max = xr.DataArray(
+    data=np.zeros((len(_group_names), len(_group_names))),
+    coords=[_group_names, _group_names],
+    dims=['target', 'source'],
+    name='delay max')
+_syn_delay_max[:,:] = 2    
+
+### Spiking parameters
+### ------------------
+
+### gmax ###
 
 # Define gmax (synaptic strength) mean
 _syn_gmax = xr.DataArray(
@@ -844,31 +931,6 @@ for kind in ['PC', 'IN']:
                                  source=group_sets[kind])] * gmax_fac
     _syn_gmax.loc[dict(target=group_sets['ALL'], 
                       source=group_sets[kind])] = gmax_adj
-
-# Define probability of failure
-_syn_pfail = xr.DataArray(
-    data= np.ones((len(_group_names), len(_group_names)))*0.3,
-    coords=[_group_names, _group_names], 
-    dims=['target', 'source'],
-    name='syn pfail')
-_synapse_kind = xr.DataArray(
-    data=np.array([[tp for tp in _group_kinds.values()] 
-                   for i in range(len(_group_names))]),
-    coords=[_group_names, _group_names], 
-    dims=['target', 'source'],
-    name='synapse kinds')
-
-# Define channel parameters
-# in ms and mV
-_ampa_par = np.array([1.4, 10, 0, 0, 0, 0], dtype='float64') 
-_gaba_par = np.asarray([3, 40, -70, 0, 0, 0], dtype='float64') 
-_nmda_par = np.array([4.3, 75, 0, 1, 0.0625, 0], dtype='float64')
-
-_channel_par = xr.DataArray(
-    data=np.asarray([_ampa_par, _gaba_par, _nmda_par]), 
-    coords=[list(_channel_names), _channelpar_names], 
-    dims=['channel', 'par'],
-    name='channel par')
 
 # Correcting factor (Hass et al.)
 _channel_syn_gmax_factor = xr.DataArray(
@@ -955,53 +1017,17 @@ _syn_gmax_max = xr.DataArray(
     dims=['target', 'source'],
     name='gmax max')
 _syn_gmax_max[:,:] = 100    
-           
-# Define delay standard deviation
-_syn_delay_sigma = xr.DataArray(
-    data=np.zeros((len(_group_names), len(_group_names))),
+
+### pfail ###
+
+# Define probability of failure
+_syn_pfail = xr.DataArray(
+    data= np.ones((len(_group_names), len(_group_names)))*0.3,
     coords=[_group_names, _group_names], 
     dims=['target', 'source'],
-    name='delay sigma')
+    name='syn pfail')
 
-_syn_delay_sigma.loc[dict(target='PC_L23', source='PC_L23')] = 0.3095
-_syn_delay_sigma.loc[dict(target='PC_L23', source='PC_L5')] = 0.1825
-_syn_delay_sigma.loc[dict(target='PC_L5', source='PC_L23')] = 0.1651
-_syn_delay_sigma.loc[dict(target='PC_L5', source='PC_L5')] = 0.4350  
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L23'], source='PC_L23')] = 0.2489
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L23'], source='PC_L5')]  = 0.0839
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L5'], source='PC_L23')]  = 0.1327
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L5'], source='PC_L5')] = 0.2000
-_syn_delay_sigma.loc[
-    dict(target='PC_L23', source=group_sets['IN_L23'])] = 0.1786
-_syn_delay_sigma.loc[
-    dict(target='PC_L23', source=group_sets['IN_L5'])] = 0.0394
-_syn_delay_sigma.loc[
-    dict(target='PC_L5', source=group_sets['IN_L23'])] = 0.0940
-_syn_delay_sigma.loc[
-    dict(target='PC_L5', source=group_sets['IN_L5'])] = 0.0940
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L23'], source=group_sets['IN_L23'])] = 0.4
-_syn_delay_sigma.loc[
-    dict(target=group_sets['IN_L5'], source=group_sets['IN_L5'])] = 0.4
-
-# Define delay minimum
-_syn_delay_min = xr.DataArray(
-    data=np.zeros((len(_group_names), len(_group_names))),
-    coords=[_group_names, _group_names],
-    dims=['target', 'source'],
-    name='Delay min')
-  
-# Define delay maximum
-_syn_delay_max = xr.DataArray(
-    data=np.zeros((len(_group_names), len(_group_names))),
-    coords=[_group_names, _group_names],
-    dims=['target', 'source'],
-    name='delay max')
-_syn_delay_max[:,:] = 2    
+# -----
 
 _spiking_params = {}
 for par in _synspike_par_names:
@@ -1010,7 +1036,10 @@ _spiking_params['pfail'] = _syn_pfail
 _spiking_params['gmax'] = dict(mean=_syn_gmax, sigma=_syn_gmax_sigma, 
                                min=_syn_gmax_min, max=_syn_gmax_max)
 
-### Equations
+
+###################################
+########## Set equations ##########
+###################################
 
 _neuron_eq_memb_par = ['{}: {}'.format(
     name, _baseunit_dict[_membpar_dict[name]['unit']])
@@ -1207,32 +1236,36 @@ for var_unit in [_membpar_dict, _stsp_all_dict, _synspike_par, _synaux_par]:
     for var in var_unit:
         _eq_var_units[var]=var_unit[var]['unit']
 
-
+################################
+########## Set basics ##########
+################################
 
 @time_report('Basics setup')
 def basics_setup(n_cells_prompted, n_stripes, basics_scales=None, 
                  alternative_pcells=None, disp=True):
-    """Set the basic network data and return cell distribution, membrane and
-    synptic parameters and connectivity in a dataclass. 
+    """Set the basic network data and return cell distribution,
+    membrane and synptic parameters and connectivity in a dataclass.
     
     Parameters
     ----------
     n_cells_prompted: int
-        Requested number of cells (may differ from the effective number due to
-        roundings).
+        Requested number of cells (may differ from the effective number
+        due to roundings).
     n_stripes: int
         Requested number of stripes.
-    basics_scales: dict (default: None)
-        Scaling of network parameters.
-    alternative_pcells: numpy.array
-        Alternative cell distribution between groups.
-    disp: bool
-        Set verbosity.
+    basics_scales: dict, optional
+        Scaling of network parameters. If not given, no scales are 
+        applied.
+    alternative_pcells: array_like, optional.
+        Alternative cell distribution between groups. If not given,
+        _pcells_per_group is used.      
+    disp: bool, optional
+        Set display. If not given, warning message may be displayed.
         
     Returns
     -------
     output: _BasicsSetup
-        dataclass holding network data.
+        Data class holding network data.
     """
     
     # The copy variables in this block are necessary when more than one 
@@ -1304,8 +1337,9 @@ def basics_setup(n_cells_prompted, n_stripes, basics_scales=None,
     
     STSP_setup=_STSPSetup(decl_vars=_stsp_all_dict,kinds=_stsp_types, 
                          sets=_stsp_set_probs, distr=_stsp_set_distrib)
-    channels_setup = _ChannelSetup(_channel_kinds,_channel_par, 
-                                  _channel_syn_gmax_factor, _channelnamepar_units)      
+    channels_setup = _ChannelSetup(_channel_kinds, _channel_par, 
+                                  _channel_syn_gmax_factor,
+                                  _channelnamepar_units)      
     
     spike_params_data = _ParamSetup()
     for par in _synspike_par_names:
@@ -1329,6 +1363,9 @@ def basics_setup(n_cells_prompted, n_stripes, basics_scales=None,
     return _BasicsSetup(cellsetup, membrane_setup, synapses_setup, 
                        eqs_setup, scalables, basics_scales)
 
+######################################
+########## Set data classes ##########
+######################################
     
 @dataclass
 class _ChannelSetup(BaseClass):

@@ -25,5 +25,6 @@ from importlib.metadata import version
 __version__ = version(__name__)
 
 from .cortex_setup import *
+from ._auxiliary import set_working_dir, set_simulation_dir
 
 

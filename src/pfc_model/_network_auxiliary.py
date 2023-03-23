@@ -1,18 +1,168 @@
+"""This script contains auxiliary functions to network setup. 
+
+This module contains:
+    set_membr_params: a function that sets membrane parameters.
+    
+    set_syn_params: a function that sets synaptic parameters.
+    
+    redistribute: a function that redistributes neuron among specified
+    groups (in this case, IN_L/IN_L_d and IN_CL/IN_CL_AC).
+    
+    setcon_standard: a function that sets the standard connectivity.
+    
+    setcon_commneigh: a function that sets connectivity with a common
+    neighbour rule.
+    
+    get_iref: a function that retrieves the refractoriness current (i.e       
+    the current the causes an instantaneous spiking frequency of 200 Hz).    
+"""
+
 import numpy as np
 from scipy.integrate import quad
 from scipy.optimize import fmin, fsolve
 import xarray as xr
 from ._basics_setup import membranetuple
 
-__all__ = ['set_syn_params', 'redistribute', 'set_membr_params',
-           'get_iref', 'setcon_commneigh', 'setcon_standard']
+__all__ = ['set_membr_params', 'set_syn_params', 'redistribute',
+           'setcon_commneigh', 'setcon_standard', 'get_iref']
            
-def set_syn_params(basics, gmax_fac, delay_fac, group_tgt, group_src, 
-                   syn_idc, target_source, syn_params, syn_pairs, 
-                   n_syn_current): 
+def set_membr_params(membr_params, set_current, group, basics):
+    """Set membrane parameters for a group of neurons. This function 
+    extends an already existing DataArray with membrane parameters 
+    drawn from the multivariate distribution in the transformed 
+    parameter space (parameters transformed by Tukey's 'Ladder of 
+    Power' transformation).
     
-    syntypes_current = str(basics.syn.kinds.loc[group_tgt, group_src].values)
-    synchannels_current = basics.syn.channels.kinds_to_names[syntypes_current]
+    Parameters
+    ----------
+    membr_params: DataArray
+        DataArray with previously drawn membrane parameters.
+    set_current: array_like
+        Indices of neurons whose parameters are to be drawn.
+    group: str
+        Group whose neuron parameters are to be set.
+    basics: _BasicsSetup
+        Basics data.
+    
+    Returns
+    -------
+    Out: DataArray
+        Extended DataArray with new membrane parameters.
+    """
+    
+    def inv_transform(param_transf, lambda_, min_inv):
+                
+        if lambda_>0:
+            if min_inv<0:
+                param_inv = param_transf**(1/lambda_) + 1.1*min_inv
+            else:
+                param_inv = param_transf**(1/lambda_)
+        
+        else:
+            if min_inv<0:
+                param_inv = np.exp(param_transf) + 1.1*min_inv
+            else:
+                param_inv = np.exp(param_transf)
+
+        return param_inv
+    
+    set_current = np.asarray(set_current)
+    set_new = set_current   
+    for trial in range(1000): 
+        multi_mean = basics.membr.mean.loc[dict(group=group)].values
+        multi_cov = basics.membr.covariance.loc[dict(group=group)]
+        multi_N = len(set_new)  
+        multi_param_transf = np.random.multivariate_normal(
+            multi_mean, multi_cov, multi_N).transpose()   
+        multi_param_transf = xr.DataArray(
+            multi_param_transf, 
+            coords=[basics.membr.names, set_new], 
+            dims=['par', 'cell_index'])
+        
+        for par in basics.membr.names:
+            param_transf = multi_param_transf.loc[dict(par=par)]
+            lambda_ = basics.membr.lambd.loc[dict(par=par, group=group)]
+            min_inv = basics.membr.min.loc[dict(par=par, group=group)]
+            
+            param_inv = inv_transform(param_transf, lambda_, min_inv)                  
+            membr_params.loc[dict(par=par, cell_index=set_new)] = param_inv
+    
+        membr_params.loc['C',set_new] =  (membr_params.loc['C',set_new] 
+                                          * membr_params.loc['g_L',set_new])
+                                        
+        set_outer = np.asarray([])
+        for par in basics.membr.names:
+            out_min = (membr_params.loc[dict(par=par, cell_index=set_current)]
+                        < basics.membr.min.loc[dict(par=par, group=group)])
+            out_max = (membr_params.loc[dict(par=par,cell_index=set_current)] 
+                        > basics.membr.max.loc[dict(par=par, group=group)])
+            where_minmax = np.where(out_min | out_max)[0]
+            set_outer = np.concatenate((set_outer, where_minmax))
+        
+        out_V = (membr_params.loc['V_r',set_current] 
+                 >= membr_params.loc['V_T',set_current])
+        where_V = np.where(out_V)[0]   
+        
+        taum = (membr_params.loc['C',set_current]
+                /membr_params.loc['g_L',set_current])
+    
+        out_taum_min = (taum < basics.membr.tau_m_min.loc[group])
+        out_taum_max = (taum > basics.membr.tau_m_max.loc[group])    
+        where_taum = np.where(out_taum_min | out_taum_max)[0]
+        
+        where_tauw = np.where(
+            (membr_params.loc['tau_w', set_current] <= taum))[0]
+        where_nan = np.argwhere(np.sum(np.isnan(
+            membr_params.loc[dict(cell_index=set_current)]), axis=0)
+            .to_numpy())[:,0]
+       
+        set_outer = np.concatenate(
+            (set_outer,where_V, where_taum, where_tauw, where_nan))
+        set_new = set_current[np.unique(set_outer).astype(int)]  
+        
+        if len(set_new)==0:                             
+            break   
+    else:
+        raise ValueError('ERROR: Number of trials for the full '
+                         'multivariate distribution has been '
+                         'exceeded.\n')
+    
+    return membr_params
+
+
+def set_syn_params(syn_params, syn_idc, group_tgt, group_src,
+                   basics, gmax_fac=1, delay_fac=1): 
+    """Set synaptic parameters for a pair of pre- and post-synaptic
+    groups of neurons. This function extends already existing arrays
+    with synaptic parameters.
+    
+    Parameters
+    ----------
+    syn_params: dict
+        Dictionary holding arrays of already drawn synaptic parameters.
+    syn_idc: array_like
+        Indices of neurons whose parameters are to be drawn.
+    group_tgt: str
+        Group of post-synaptic (target) neurons.
+    group_src: str
+        Group of pre-synaptic (source) neurons.
+    basics: _BasicsSetup
+        Basics data.
+    gmax_fac: int or float, optional
+        gmax factor. If not given, it defaults to 1.
+    delay_fac: int or float, optional
+        delay factor. If not given, it defaults to 1.
+    
+    
+    Returns
+    -------
+    Out: dict
+        Dictionary containing extended arrays with new synaptic
+        parameters.
+    """
+    
+    channels_curr = basics.syn.channels.kinds_to_names[
+        str(basics.syn.kinds.loc[group_tgt, group_src].values)]
     
     bcs_gmax = basics.syn.spiking.params.gmax
     bcs_delay = basics.syn.delay
@@ -39,7 +189,7 @@ def set_syn_params(basics, gmax_fac, delay_fac, group_tgt, group_src,
     new_delay = _set_syn_delay(syn_idc, delay, delay_sigma, 
                                delay_min, delay_max)
 
-    for channel in synchannels_current:
+    for channel in channels_curr:
         new_channel = xr.DataArray(
             [[basics.syn.channels.names.index(channel)]*len(syn_idc)],
             coords=[['channel'], syn_idc], 
@@ -62,12 +212,34 @@ def set_syn_params(basics, gmax_fac, delay_fac, group_tgt, group_src,
         syn_params['delay'] = np.concatenate(
             (syn_params['delay'], new_delay), axis=1)
         
-        syn_pairs = np.concatenate((syn_pairs, target_source), axis=1)
-        n_syn_current += len(syn_idc)        
+    return syn_params  
 
-    return syn_params,  syn_pairs, n_syn_current 
 
-def redistribute(basics, group_distr, membr_params, stripe):
+def redistribute(group_distr, stripe, membr_params, basics):
+    """Redistribute neurons between IN_L/IN_L_d and IN_CL/IN_CL_AC in
+    each layer. 
+    
+    IN_L/IN_L_d neurons are redistributed according to latency time.
+    IN_CL/IN_CL_AC neurons are redistributed according to adaptation
+    rate.
+    
+    Parameters
+    ----------
+    group_distr: list
+        List of lists with distribution of neuron indices in groups and
+        stripes.
+    stripe: int
+        Stripe whose groups are to be redistributed.
+    membr_params: DataArray
+        Membrane parameters.
+    basics: _BasicsSetup
+        Basic data.
+        
+    Returns
+    -------
+    Out: list
+        List of lists with redistributed neuron indices.
+    """
     
     bcs_names = basics.struct.groups.names
     I0 = 500
@@ -88,8 +260,7 @@ def redistribute(basics, group_distr, membr_params, stripe):
             set_L_d.append(cell)
         else:
             set_L.append(cell)
-    
-    
+     
     group_distr[stripe][bcs_names.index('IN_L_L23')] = set_L
     group_distr[stripe][bcs_names.index('IN_L_d_L23')] = set_L_d
             
@@ -170,83 +341,27 @@ def redistribute(basics, group_distr, membr_params, stripe):
     return group_distr
 
 
-def set_membr_params(membr_params, set_new, set_current, multi_param_transf, 
-                     multi_lambda_, multi_minparam_inv, basics, group):
-    
-    def inv_transform(param_transf, lambda_, minparam_inv):
-                
-        if lambda_>0:
-            if minparam_inv<0:
-                param_inv = param_transf**(1/lambda_) + 1.1*minparam_inv
-            else:
-                param_inv = param_transf**(1/lambda_)
-        
-        else:
-            if minparam_inv<0:
-                param_inv = np.exp(param_transf) + 1.1*minparam_inv
-            else:
-                param_inv = np.exp(param_transf)
-
-        return param_inv
-
-    for par in basics.membr.names:
-        param_transf = multi_param_transf.loc[dict(par=par)]
-        lambda_ = multi_lambda_.loc[dict(par=par)]
-        minparam_inv = multi_minparam_inv.loc[dict(par=par)]
-        
-        param_inv = inv_transform(param_transf, lambda_, minparam_inv)                  
-        membr_params.loc[dict(par=par, cell_index=set_new)] = param_inv
-
-    membr_params.loc['C',set_new] =  (membr_params.loc['C',set_new] 
-                                      * membr_params.loc['g_L',set_new])
-                                    
-    set_outer = np.asarray([])
-    #AQUI_2
-    for par in basics.membr.names:
-        out_min = (membr_params.loc[dict(par=par, cell_index=set_current)]
-                    < basics.membr.min.loc[dict(par=par, group=group)])
-        out_max = (membr_params.loc[dict(par=par,cell_index=set_current)] 
-                    > basics.membr.max.loc[dict(par=par, group=group)])
-        where_minmax = np.where(out_min | out_max)[0]
-        set_outer = np.concatenate((set_outer, where_minmax))
-    
-    out_V = (membr_params.loc['V_r',set_current] 
-             >= membr_params.loc['V_T',set_current])
-    where_V = np.where(out_V)[0]   
-    
-    taum = (membr_params.loc['C',set_current]
-            /membr_params.loc['g_L',set_current])
-
-    out_taum_min = (taum < basics.membr.tau_m_min.loc[group])
-    out_taum_max = (taum > basics.membr.tau_m_max.loc[group])    
-    where_taum = np.where(out_taum_min | out_taum_max)[0]
-    
-    where_tauw = np.where((membr_params.loc['tau_w', set_current] <= taum))[0]
-    where_nan = np.argwhere(np.sum(np.isnan(
-        membr_params.loc[dict(cell_index=set_current)]), axis=0)
-        .to_numpy())[:,0]
-   
-    set_outer = np.concatenate(
-        (set_outer,where_V, where_taum, where_tauw, where_nan))
-    set_new = set_current[np.unique(set_outer).astype(int)]  
-
-    return membr_params, set_new
-
-def _setcon(n_syn, target_arr, source_arr, pcon):
-    
-    n_target, n_source = len(target_arr), len(source_arr)
-    conn_idc = np.arange(n_target*n_source)
-    np.random.shuffle(conn_idc)
-    conn_idc=conn_idc[:int(np.round(pcon*n_target*n_source, 0))]
-    syn_idc = np.arange(int(np.round(pcon*n_target*n_source, 0))) + n_syn
-   
-    return _get_targetsource(conn_idc, n_source), syn_idc
-
-def _get_targetsource(conn_idc, n_source):
-    return np.asarray([conn_idc//n_source,conn_idc%n_source]).astype(int)
-
-
 def setcon_standard(n_syn, target_arr, source_arr, pcon): 
+    """Set standard connectivity (without commom neighbour rule).
+    
+    Parameters
+    ----------
+    n_syn: int
+        Number of synapses currently set.
+    target_arr: array_like
+        Array of post-synaptic (target) neuron indices.
+    source_arr: array_like
+        Array of pre-synaptic (source) neuron indices.
+    pcon: float
+        Connection probability.
+    
+    Returns
+    -------
+    Out: (array, array)
+        Pairs of pre- and post-synaptic neuron indices as the first
+        element of the output; synapse indices as the second element
+        of the output.
+    """
     target_arr = np.asarray(target_arr)
     source_arr = np.asarray(source_arr)
     target_source, syn_idc = _setcon(n_syn, target_arr, source_arr, pcon)
@@ -257,11 +372,30 @@ def setcon_standard(n_syn, target_arr, source_arr, pcon):
 
 
 def setcon_commneigh(n_syn, cells_arr, pcon, p_selfcon):
-     
+    """Set connectivity with commom neighbour rule.
+    
+    Parameters
+    ----------
+    n_syn: int
+        Number of synapses currently set.
+    cell_arr: array_like
+        Array of neuron indices.
+    pcon: float
+        Connection probability.
+    p_selfcon: float
+        Probability of recurrent connection.
+    
+    Returns
+    -------
+    Out: (array, array)
+        Pairs of pre- and post-synaptic neuron indices as the first
+        element of the output; synapse indices as the second element
+        of the output.
+    """
     cells_arr = np.array(cells_arr)
     n_cells = len(cells_arr)
     target_source, syn_idc = _setcon(n_syn, cells_arr, cells_arr, pcon)    
-    neigh_mat = get_commonneigh_recur(target_source, n_cells)
+    neigh_mat = _get_commonneigh_recur(target_source, n_cells)
     slope = 20*3.9991/n_cells
     
     (n_neighbours, n_neigh_connections,
@@ -375,7 +509,43 @@ def setcon_commneigh(n_syn, cells_arr, pcon, p_selfcon):
                               cells_arr[pairs_select[1,:]]])
     
     return target_source, syn_idc.astype(int)
-                       
+
+
+def get_iref(memb):
+    """Retrieve refractoriness current  (i.e the current the causes an
+    instantaneous spiking frequency of 200 Hz)
+    
+    Parameters
+    ----------
+    memb: MembraneTuple
+        MembraneTuple (named tuple defined in _basics_setup) of membrane
+        paramaters of a neuron.
+    
+    Returns
+    -------
+    out: float
+        Refratoriness current (in pA).
+    """
+    
+    Irheo = memb.g_L * (memb.V_T-memb.E_L) - memb.g_L*memb.delta_T        
+          
+    return fmin(_cost_iref, Irheo+100, disp=False, args=(memb,))[0]
+    
+
+def _setcon(n_syn, target_arr, source_arr, pcon):
+    
+    n_target, n_source = len(target_arr), len(source_arr)
+    conn_idc = np.arange(n_target*n_source)
+    np.random.shuffle(conn_idc)
+    conn_idc=conn_idc[:int(np.round(pcon*n_target*n_source, 0))]
+    syn_idc = np.arange(int(np.round(pcon*n_target*n_source, 0))) + n_syn
+   
+    return _get_targetsource(conn_idc, n_source), syn_idc
+
+def _get_targetsource(conn_idc, n_source):
+    return np.asarray([conn_idc//n_source,conn_idc%n_source]).astype(int)
+
+                      
 def _get_static_rate(memb, I0):
     
     tau_m = memb.C/memb.g_L
@@ -475,7 +645,6 @@ def _get_rate(memb, I0, w_r, V_r):
         
         return V_nullbound_inters
 
-    #AQUI_5
     tau_m = memb.C/memb.g_L
     tau_ratio = tau_m/memb.tau_w
     Dist_VT = (tau_ratio 
@@ -584,20 +753,19 @@ def _cost_iref(I, memb):
     
     return q
 
-def get_iref(memb):
-    Irheo = memb.g_L * (memb.V_T-memb.E_L) - memb.g_L*memb.delta_T                  
-    return fmin(_cost_iref, Irheo+100, disp=False, args=(memb,))[0]
 
 def _latency_adex(memb, I):
     return quad(lambda V: memb.C/(I - memb.g_L * (V-memb.E_L) 
                                   + memb.g_L*memb.delta_T
                                   *np.exp((V-memb.V_T) / memb.delta_T)),
                 memb.E_L, memb.V_T/2)[0]
+
     
 def _latency_lif(memb, I):
     return memb.C*np.log(I / (I + memb.g_L * (memb.E_L-memb.V_T/2))) / memb.g_L
 
-def get_commonneigh_recur(ts, n_cell):
+
+def _get_commonneigh_recur(ts, n_cell):
     target, source = ts
     conn_mat = np.zeros((n_cell, n_cell))
     conn_mat[target, source] = 1
@@ -617,8 +785,8 @@ def get_commonneigh_recur(ts, n_cell):
     return comneigh_mat.astype(int)    
     
 
-def commonneighbour_report(target_source, n_cells):
-    neigh_mat = get_commonneigh_recur(target_source, n_cells)   
+def _commonneighbour_report(target_source, n_cells):
+    neigh_mat = _get_commonneigh_recur(target_source, n_cells)   
     n_neigh_connected = neigh_mat[target_source[0,:], target_source[1, :]]  
     
     common_neigh = {}
@@ -684,7 +852,7 @@ def _set_syn_pfail(new_idc, pfail):
     syn_params = xr.DataArray(
         np.zeros((1, len(new_idc))), coords=[['pfail'], new_idc],
         dims=['par', 'syn_index'])
-    syn_params.loc['pfail', new_idc]=pfail
+    syn_params.loc['pfail', new_idc] = pfail
     
     return syn_params
 
@@ -695,8 +863,8 @@ def _set_syn_delay(new_idc, delay, delay_sigma, delay_min, delay_max):
         coords=[['delay'], new_idc],
         dims=['par', 'syn_index'])
     syn_params.loc['delay', new_idc]= _random_param(
-        len(new_idc), delay, delay_sigma, delay_min*delay, delay_max*delay,
-        'normal')
+        len(new_idc), delay, delay_sigma, delay_min*delay, 
+        delay_max*delay,'normal')
     
     return syn_params
 

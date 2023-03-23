@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import os
 import shutil
 from ._network_setup import *
-from ._auxiliar import *
+from ._auxiliary import *
 from ._basics_setup import membranetuple
 
 br2.BrianLogger.suppress_name('resolution_conflict', 'device')
@@ -23,114 +23,47 @@ br2.BrianLogger.suppress_name('resolution_conflict', 'device')
 __all__ = ['Cortex']
 
 class Cortex(BaseClass):
+    
     """A class that contains all the network, monitor and stimuli setup
     and allow simulation runs.
     
-    Attributes
+    Parameters
     ----------
-    network: network data (membrane and synaptic parameter setup,
-    connectivity).
-    
-    method: numerical integration method from Brian 2 (i.e. rk4).
-    
-    dt: simulation step (in ms).
-    
-    constant_stimuli: background constant current for each group.
-    
-    fluctuant_stimuli: non-constant current array for each group.
-    
-    transient: transient period (in ms). This period is not recorded
-    (due to artifact in the beggining of simulations).
-    
-    seed: random seed (int or None).
-    
-    cortex_neuron_scales: scales for membrane parameters.
-    
-    cortex_syn_scales: scales for synaptic parameters.
-    
-    net: Brian 2 Network instance.
-    
-    membrane_events: events for variable resetting during simulations.
-    
-    neurons: Brian 2 NeuronGroup instance. This object holds neuron
-    and membrane info.
-    
-    synapses: Brian 2 Synapses instance. This object hols synapse
-    and connectivity info.
-    
-    spikemonitor: Brian 2 SpikeMonitor instance. This object monitors
-    spiking activity.
-    
-    external_stimuli: this attribute holds data about the external
-    (i.e. Poisson or regular) stimuli.
-    
-    neuron_monitors: membrane variable monitors.
-    
-    synapse_monitors: synaptic variable monitors.
-    
-    longrun_neuron_monitors: membrane variable monitors for long
-    simulations.
-    
-    longrun_synapse_monitors: synaptic variable monitors for long
-    simulations.
-    
-    recorded: recorded arrays from neuron and synaptic monitors.
-    
-
-    Static methods
-    --------------
-    setup: set a new model instance from scratch.
-    
-    load: set a new model instance loading network data that was
-    previously saved.
-    
-    
-    Instance methods
-    ----------------
-    save: save network data.
-    
-    run: run a simulation.
-    
-    set_fluctuant_stimuli: set non-constant stimuli.
-    
-    set_constant_stimuli: set background constant stimuli.
-    
-    set_poisson_stimuli: set stimuli from external poisson spike 
-    trains.             
-    
-    set_regular_stimuli: set stimuli from regular spike trains.
-    
-    set_neuron_monitors: set monitors for membrane variables.
-    
-    set_synapse_monitors: set monitors for synaptic variables.
-    
-    set_longrun_neuron_monitors: set monitors for membrane variables
-    in long simulations.
-    
-    set_longrun_synapse_monitors: set monitors for synaptic variables
-    in long simulations.
-    
-    get_memb_params: get membrane parameters from a neuron from the
-    network.
-    
-    group_idcs: get group indexes.
-    
-    neuron_idcs: get neuron indexes.
-    
-    syn_idcs_from_neurons: get synapses indexes informing neuron
-    indexes.
-    
-    syn_idcs_from_groups: get synapses indexes informing group 
-    indexes/names.
-    
-    spiking_idcs: get indexes of neurons with the prompted spiking
-    rate.
-    
-    spiking_count: get spiking counts of neurons.
-    
-    spiking_rate: get spiking rate of neurons.
-    
-    rheobase: get rheobase of neurons.    
+    n_cells: int
+        Number of cells per stripe.
+    n_stripes: int
+        Number of stripes.
+    constant_stimuli: array_like
+        Constant background stimuli applied on each group (its length
+        must be the number of different groups in each stripe).
+    method: str
+        Numerical integration method (as in Brian 2).
+    dt: float
+        Simulation step (in ms).
+    transient: float or int, optional
+        Transient initial period (in ms) that is not to be recorded 
+        (due to artifact in the beginning of simulations). If not 
+        given, it defaults to 0.
+    basics_scales: dict, optional
+        Dictionary with basics scales. If not given, no basic scaling 
+        is applied.
+    fluctuant_stimuli: array, optional
+        Non-constant current array for each group. If not given, no
+        fluctuant stimuli are applied.    
+    seed: int, optional
+        Random seed. If not given, no random seed is set.
+    alternative_pcells: array_like, optional
+        Alternative cell distribution. If not given, it defaults to
+        _pcells_per_group in _basics_setup.
+    basics_disp: bool, optional
+        Set display of basic setup. If not given, warning message
+        on basic setup may be displayed.
+    cortex_neuron_scales: dict, optional
+        Dictionary with neuron parameter scales. If not given, no
+        scaling in membrane parameters is set.
+    cortex_syn_scales: dict, optional
+        Dictionary with synaptic parameter scales. If not given, no
+        scaling in membrane parameters is set.
     """
     
     @staticmethod
@@ -139,6 +72,55 @@ class Cortex(BaseClass):
               basics_scales=None, fluctuant_stimuli=None, seed=None,
               alternative_pcells=None, basics_disp=True,
               cortex_neuron_scales=None, cortex_syn_scales=None):
+        """Set a new model instance.
+        
+        Parameters
+        ----------
+        n_cells: int
+            Number of cells per stripe.
+        n_stripes: int
+            Number of stripes.
+        constant_stimuli: array_like
+            Constant background stimuli applied on each group (its length
+            must be the number of different groups in each stripe).
+        method: str
+            Numerical integration method (as in Brian 2).
+        dt: float
+            Simulation step (in ms).
+        transient: float or int, optional
+            Transient initial period (in ms) that is not to be recorded 
+            (due to artifact in the beginning of simulations). If not 
+            given, it defaults to 0.
+        basics_scales: dict, optional
+            Dictionary with basics scales. If not given, no basic scaling 
+            is applied.
+        fluctuant_stimuli: list, optional
+            Fluctuant stimuli applied on each group. Each element in the
+            list is a tuple (target, function, start, stop), where target
+            is group identification as in neuron_idcs (group, stripe);
+            function defines the stimulus value in each instant (in ms);
+            start and stop are the instants when stimuli begin and end
+            (in ms). If not given, no fluctuant stimuli are applied.   
+        seed: int, optional
+            Random seed. If not given, no random seed is set.
+        alternative_pcells: array_like, optional
+            Alternative cell distribution. If not given, it defaults to
+            _pcells_per_group in _basics_setup.
+        basics_disp: bool, optional
+            Set display of basic setup. If not given, warning message
+            on basic setup may be displayed.
+        cortex_neuron_scales: dict, optional
+            Dictionary with neuron parameter scales. If not given, no
+            scaling in membrane parameters is set.
+        cortex_syn_scales: dict, optional
+            Dictionary with synaptic parameter scales. If not given, no
+            scaling in membrane parameters is set.
+        
+        Returns
+        -------
+        Out: Cortex
+            Prefrontal cortex model instance.
+        """
         
         
         network = network_setup(n_cells, n_stripes, basics_scales, seed,
@@ -153,6 +135,38 @@ class Cortex(BaseClass):
     def load(path, constant_stimuli, method, dt, transient=0, 
              fluctuant_stimuli=None, cortex_neuron_scales=None,
              cortex_syn_scales=None):
+        """Set a model instance from previously saved data.
+        
+        Parameters
+        ----------
+        path: str
+            Path where saved data are to be retrieved from.
+        constant_stimuli: array_like
+            Constant background stimuli applied on each group (its length
+            must be the number of different groups in each stripe).
+        method: str
+            Numerical integration method (as in Brian 2).
+        dt: float
+            Simulation step (in ms).
+        transient: float or int, optional
+            Transient initial period (in ms) that is not to be recorded 
+            (due to artifact in the beginning of simulations). If not 
+            given, it defaults to 0.
+        fluctuant_stimuli: array, optional
+            Non-constant current array for each group. If not given, no
+            fluctuant stimuli are applied.  
+        cortex_neuron_scales: dict, optional
+            Dictionary with neuron parameter scales. If not given, no
+            scaling in membrane parameters is set.
+        cortex_syn_scales: dict, optional
+            Dictionary with synaptic parameter scales. If not given, no
+            scaling in membrane parameters is set.
+        
+        Returns
+        -------
+        Out: Cortex
+            Prefrontal cortex model instance.
+        """
       
         network = Network.load(path)
         seed = network.seed
@@ -164,6 +178,7 @@ class Cortex(BaseClass):
     def __init__(self, network, constant_stimuli, method, dt, transient=0, 
                  fluctuant_stimuli=None, seed=None, cortex_neuron_scales=None, 
                  cortex_syn_scales=None):
+        """Initiate model instance."""
     
         np.random.seed(seed)
         br2.seed(seed)
@@ -187,7 +202,7 @@ class Cortex(BaseClass):
         self.cortex_syn_scales = cortex_syn_scales
         
         self.net = br2.Network()      
-        self.set_fluctuant_stimuli()
+        self._set_fluctuant_stimuli()
         
         membrane_events = self._get_membrane_events_dict()     
         self.membrane_events = membrane_events
@@ -201,7 +216,7 @@ class Cortex(BaseClass):
             reset=network.basics.equations.membr_reset, events=membrane_events,
             method=method, refractory=5*br2.ms, dt=self.dt)
        
-        self.set_constant_stimuli()
+        self._set_constant_stimuli()
         self._set_membrane_events()
         self._set_neuron_params()
         self._set_channels()
@@ -229,7 +244,7 @@ class Cortex(BaseClass):
         self._set_neuron_scales()   
          
         self.net.add(self.neurons, self.synapses, self.spikemonitor,
-                     *self.event_monitors.values())
+                     *self.event_monitors._values())
                     
         self.external_stimuli=_NetworkHolder()
         
@@ -244,11 +259,28 @@ class Cortex(BaseClass):
         self._longrun_monitor_control=[]
     
     def save(self, path):
+        """Save cortex data (structure, connectivity and parameters).
+        
+        Parameter
+        ---------
+        path: str
+            Path where data will be saved.
+        """
         self.network.save(path)
     
     @time_report('Cortex simulation')
     def run(self, t, erase_longrun=True):
+        """
+        Run a simulation.
         
+        Parameter
+        ---------
+        t: int or float
+            Duration of simulation (in ms).
+        erase_longrun: bool, optional
+            Whether directory created for long run monitors are to be
+            deleted. If not given, it defaults to True.
+        """
         print_out = "::   REPORT: Preparing simulation   ::"
         
         print('.'*len(print_out))
@@ -351,54 +383,42 @@ class Cortex(BaseClass):
                     monitor.active=False
         print()
         self._restore_longrun(erase_longrun)
-    
-    def set_fluctuant_stimuli(self):
-        if self.fluctuant_stimuli is not None:
-            for target, function, start, stop in self.fluctuant_stimuli:
-                neuron_idcs = self.neuron_idcs(target)
-                
-                Nsteps_total = round(stop/(self.dt/br2.ms))
-                Nsteps_start = round(start/(self.dt/br2.ms))     
-                
-                fluctuant_array = np.zeros((Nsteps_total, 
-                                            self.network.basics.struct.n_cells))
-                I_arr = np.asarray(
-                    [0]*Nsteps_start 
-                    + [function(t) for t in np.linspace(
-                        start, stop, Nsteps_total-Nsteps_start, 
-                        endpoint=False)]
-                    )
-                
-                if len(neuron_idcs)>0:
-                    fluctuant_array[:, neuron_idcs] = repmat(
-                        I_arr, len(neuron_idcs), 1
-                        ).transpose()
-                        
-            fluctuant_str = 'fluctuant_array(t, i)'
-            
-        else:
-            fluctuant_array = None
-            fluctuant_str = '0'
-        
-        self.fluctuant_array = fluctuant_array
-        self.fluctuant_str = fluctuant_str
-    
-    def set_constant_stimuli(self):
-        I_DC = np.zeros(self.network.basics.struct.n_cells_total)
-        if self.constant_stimuli is not None:
-            for target, value in self.constant_stimuli:
-                if len(self.neuron_idcs(target)) > 0:
-                    I_DC[self.neuron_idcs(target)] = value
-         
-        self.neurons.I_DC = I_DC*br2.pA
         
     def set_poisson_stimuli(self, stimulator_name, n_source, channels, 
                             target_idc, pcon, rate, start, stop, gmax, pfail):
-    
+        """Set external stimuli generated by Poisson processes.
+        
+        Parameters
+        ----------
+        stimulator_name: str
+            Name of the stimulator (the stimulator can be acessed in 
+            external_stimuli).
+        n_source: int
+            Number of external stimuli sources.
+        channels: str or list[str]
+            Channels that will be stimulated.
+        target_idc: array_like
+            Indices of post-synaptic (target) neurons.
+        pcon: float
+            Probability of connection between external sources and
+            target neurons.
+        rate: float
+            Mean spiking rate (in Hz) of external sources.
+        start: float
+            Instant of stimuli start (in ms).
+        stop: float
+            Instant of stimuli stop (in ms).
+        gmax: float
+            Synaptic strength (in nS).
+        pfail: float
+            Probability of failure.
+        """
+        
         spike_times = []
         spike_idcs = []
      
         source_idc = np.arange(n_source)
+        target_idc = np.asarray(target_idc)
         Ntarget = len(target_idc)
         for src in range(n_source):
             lambd = 1000/rate
@@ -430,7 +450,33 @@ class Cortex(BaseClass):
     
     def set_regular_stimuli(self, stimulator_name, n_source, channels, 
                             target_idc, pcon, rate, start, stop, gmax, pfail):
-
+        """Set regular external stimuli.
+        
+        Parameters
+        ----------
+        stimulator_name: str
+            Name of the stimulator (the stimulator can be acessed in 
+            external_stimuli).
+        n_source: int
+            Number of external stimuli sources.
+        channels: str or list[str]
+            Channels that will be stimulated.
+        target_idc: array_like
+            Indices of post-synaptic (target) neurons.
+        pcon: float
+            Probability of connection between external sources and
+            target neurons.
+        rate: float
+           Spiking rate (in Hz) of external sources.
+        start: float
+            Instant of stimuli start (in ms).
+        stop: float
+            Instant of stimuli stop (in ms).
+        gmax: float
+            Synaptic strength (in nS).
+        pfail: float
+            Probability of failure.
+        """
         source_idc = np.arange(n_source)
         n_spikes=round((stop-start)*rate/1000)
 
@@ -463,6 +509,27 @@ class Cortex(BaseClass):
     
     def set_neuron_monitors(self, name, variables, groupstripe_list, 
                             start=None, stop=None):
+        """Set monitor of neuron variables. The monitor can be accessed
+        in neuron_monitors.
+        
+        Recorded data can be retrieved in neuron_monitors (through
+        monitor name) and recorded (through variable name) attributes.
+        
+        Parameters
+        ----------
+        name: str
+            Name of monitor.
+        variables:
+            Neuron variables that are to be monitored.
+        groupstripe_list: list or tuple
+            Monitored group information as in neuron_idcs.
+        start: float, optional
+            Start instant (in ms). If not given, it defaults to
+            transient (instance attribute).
+        stop: float, optional
+            Stop instant (in ms). If not given, monitoring is carried
+            until the end of simulation.
+        """
         
         if isinstance(variables, str):
             variables = [variables]
@@ -475,7 +542,27 @@ class Cortex(BaseClass):
         
     def set_synapse_monitors(self, name, variables, target_groupstripe_list, 
                              source_groupstripe_list, start=None, stop=None):
-      
+        """Set monitor of synaptic variables. The monitor can be accessed
+        in neuron_monitors.
+        
+        Recorded data can be retrieved in synapse_monitors (through
+        monitor name) and recorded (through variable name) attributes.
+        
+        Parameters
+        ----------
+        name: str
+            Name of monitor.
+        variables:
+            Synaptic variables that are to be monitored.
+        groupstripe_list: list or tuple
+            Monitored group information as in neuron_idcs.
+        start: float, optional
+            Start instant (in ms). If not given, it defaults to
+            transient (instance attribute).
+        stop: float, optional
+            Stop instant (in ms). If not given, monitoring is carried
+            until the end of simulation.
+        """
         if isinstance(variables, str):
             variables = [variables]
         
@@ -490,7 +577,33 @@ class Cortex(BaseClass):
     def set_longrun_neuron_monitors(self, name, variables, groupstripe_list, 
                                     interval, start=None, stop=None, 
                                     population_agroupate=None):
+        """Set monitor of neuron variables for long run simulations.
+        The simulation is divided in segments, and monitor data are
+        saved to disk and cleaned between them. It is intended to avoid
+        memory overflow during long simulations.
         
+        Recorded data can be automatically saved as sum or mean of
+        population values (if this is the desired information, this
+        synthetized storing spares memory.)
+        
+        Recorded data can be retrieved in longrun_neuron_monitors (through
+        monitor name) and recorded (through variable name) attributes.
+        
+        Parameters
+        ----------
+        name: str
+            Name of monitor.
+        variables:
+            Neuron variables that are to be monitored.
+        groupstripe_list: list or tuple
+            Monitored group information as in neuron_idcs.
+        start: float, optional
+            Start instant (in ms). If not given, it defaults to
+            transient (instance attribute).
+        stop: float, optional
+            Stop instant (in ms). If not given, monitoring is carried
+            until the end of simulation.       
+        """
         if isinstance(variables, str):
             variables = [variables]
         
@@ -512,6 +625,33 @@ class Cortex(BaseClass):
             self, name, variables, target_groupstripe_list, 
             source_groupstripe_list,  interval, start=None, stop=None,
             population_agroupate=None):
+        """Set monitor of synaptic  variables for long run simulations.
+        The simulation is divided in segments, and monitor data are
+        saved to disk and cleaned between them. It is intended to avoid
+        memory overflow during long simulations.
+        
+        Recorded data can be automatically saved as sum or mean of
+        population values (if this is the desired information, this
+        synthetized storing spares memory.)
+        
+        Recorded data can be retrieved in longrun_synapse_monitors (through
+        monitor name) and recorded (through variable name) attributes.
+        
+        Parameters
+        ----------
+        name: str
+            Name of monitor.
+        variables:
+            Neuron variables that are to be monitored.
+        groupstripe_list: list or tuple
+            Monitored group information as in neuron_idcs.
+        start: float, optional
+            Start instant (in ms). If not given, it defaults to
+            transient (instance attribute).
+        stop: float, optional
+            Stop instant (in ms). If not given, monitoring is carried
+            until the end of simulation.       
+        """
         
         if isinstance(variables, str):
             variables = [variables]
@@ -532,6 +672,18 @@ class Cortex(BaseClass):
             variables, interval, start, stop, population_agroupate)
         
     def get_memb_params(self, idc):
+        """Retrieve membrane parameters as membranetuple.
+        
+        Parameter
+        ---------
+        idc: int
+            Index of requested neuron.
+        
+        Returns
+        -------
+        Out: membranetuple
+            membranetuple holding the requestes parameters.
+        """
         C = self.neurons.C[idc]/br2.pF
         g_L = self.neurons.g_L[idc]/br2.nS
         E_L = self.neurons.E_L[idc]/br2.mV
@@ -545,20 +697,108 @@ class Cortex(BaseClass):
         return membranetuple(C, g_L, E_L, delta_T, V_up, tau_w, b, V_r, V_T)
           
     def group_idcs(self, group):
+        """Get group index from group name.
+        
+        Parameters
+        ----------
+        group:str or int
+            Index or name of requested group or set of groups (as in 
+            group_sets in _basics_setup).
+        
+        Returns
+        -------
+        Out: list
+            List of indices from requested groups. 
+        """
+
         return self.network.group_idcs(group)
 
     def neuron_idcs(self, groupstripe_list):    
         return self.network.neuron_idcs(groupstripe_list)
+    """Retrieve indices from neurons corresponding to the
+    given group and stripe.
+    
+    Parameters
+    ----------
+    groupstripe_list: list
+        List of requested groups and stripes.
+    
+    Returns
+    -------
+    Out: np.array
+        Array of neuron indices.
+    """
     
     def syn_idcs_from_neurons(self, target, source, channel=None):
+        """Synaptic indices from neuron information.
+        
+        Parameters
+        ----------
+        target: array_like
+            Indices of post-synaptic neurons.
+        source: array_like
+            Indices of pre-synaptic neurons.
+        channels: str, optional
+            Name of requested synaptic channel. If not given,
+            default to all synapses.
+            
+        Returns
+        -------
+        Out: array
+            Requested synaptic indices.
+        """
+        
         return self.network.syn_idcs_from_neurons(target, source, channel)
-    
+       
     def syn_idcs_from_groups(self, target_groupstripe_list, 
                              source_groupstripe_list, channel=None):
+        """Synaptic indices from group information.
+        
+        Parameters
+        ----------
+        tgt_groupstripe_list: list
+            Group and stripe of post-synaptic neurons.
+        source: array_like
+            Group and stripe of pre-synaptic neurons.
+        channels: str, optional
+            Name of requested synaptic channel. If not given,
+            default to all synapses.
+            
+        Returns
+        -------
+        Out: array
+            Requested synaptic indices.
+        """
+        
         return self.network.syn_idcs_from_groups(
             target_groupstripe_list, source_groupstripe_list, channel)
         
     def spiking_idcs(self, comparisons, groupstripe=None, tlim=None):
+        """Get indices of neurons with the requested rate. The requested
+        rate is defined by comparisons (>=, <= or == a certain rate).
+        
+        Parameters
+        ----------
+        comparisons: list or tuple
+            A tuple of a list of tuples composed by a np.ufunc and the
+            rate value (in Hz). The np.ufunc is intended to be
+            np.greater, np.less, np.greater_equal or np.less_equal.
+            E.g. (np.greater_equal, 0.33) retrieves neuron indices from
+            neurons with spiking rare greater or equal to 0.33 Hz.
+        
+        groupstripe: list or tuple, optional
+            Group information as in neuron_idcs. If not given, all
+            the network neurons are analysed.
+        
+        tlim: tuple, optional
+            A 2-tuple (start, stop), defining the beginning and end (in
+            ms) of analysis window.
+            
+        Returns
+        -------
+        Out: array
+            Array of requested neuron indices.
+        """
         
         if isinstance(comparisons[0], np.ufunc):
             comparisons = [comparisons]
@@ -585,10 +825,34 @@ class Cortex(BaseClass):
         
         return sp_idc
    
-    def spiking_count(self, neuron_idcs=None, tlim=None, delta_t=None):        
+    def spiking_count(self, neuron_idcs=None, tlim=None, delta_t=None):
+        """Get neuron spiking count.
+        
+        Parameters
+        ----------
+        neuron_idcs: array_like, optional
+            Indices of neurons that are to be analysed. If not given, 
+            all neurons are analysed.
+        
+        tlim: tuple, optional
+            A 2-tuple (start, stop), defining the beginning and end (in
+            ms) of analysis window.
+        
+        delta_t: float, optional
+            Define time bins for spiking count. If not given, the
+            function retrieves the spiking count in the whole
+            simulation period.
+            
+        Returns
+        -------
+        Out: array
+            Array of requested count.
+        """
+        
         if tlim is None and delta_t is None:
             count = self.spikemonitor.count
             if neuron_idcs is not None:
+                neuron_idcs = np.asarray(neuron_idcs)
                 count = count[neuron_idcs]
             return count
         
@@ -600,6 +864,8 @@ class Cortex(BaseClass):
             
             if neuron_idcs is None:
                 neuron_idcs = np.arange(self.neurons.n)
+            else:
+                neuron_idcs = np.asarray(neuron_idcs)
                 
             spike_trains = self.spikemonitor.spike_trains()
        
@@ -627,6 +893,28 @@ class Cortex(BaseClass):
             return count
          
     def spiking_rate(self, neuron_idcs=None, tlim=None, delta_t=None):
+        """Get neuron spiking rate.
+        
+        Parameters
+        ----------
+        neuron_idcs: array_like, optional
+            Indices of neurons that are to be analysed. If not given, 
+            all neurons are analysed.
+        
+        tlim: tuple, optional
+            A 2-tuple (start, stop), defining the beginning and end (in
+            ms) of analysis window.
+        
+        delta_t: float, optional
+            Define time bins for spiking count. If not given, the
+            function retrieves the spiking rate in the whole
+            simulation period.
+            
+        Returns
+        -------
+        Out: array
+            Array of requested rates.
+        """
         count = self.spiking_count(neuron_idcs, tlim, delta_t)
         
         if delta_t is None:
@@ -638,7 +926,20 @@ class Cortex(BaseClass):
         else:
             return count/(delta_t/1000)
        
-    def rheobase(self, neuron_idcs=None):     
+    def rheobase(self, neuron_idcs=None):   
+        """Retrieve rheobase current from neurons.
+        
+        Parameter
+        ---------
+        neuron_idcs: array_like, optional
+            Indices of neurons whose rheobase is requested. If not
+            given, the rheobase value of all neurons is retrived.
+        
+        Returns
+        -------
+        Out: nd.array
+            Values of rheobase.
+        """
         return self.network.rheobase(neuron_idcs)
     
     
@@ -781,8 +1082,7 @@ class Cortex(BaseClass):
             self._set_syn_spike_params()
             self._set_delay()    
     
-    def _process_longrun(self, l, t1):
-      
+    def _process_longrun(self, l, t1):  
         if not os.path.isdir('longrun'):
             os.mkdir('longrun')
         name_units = self.network.basics.equations.var_units
@@ -849,8 +1149,48 @@ class Cortex(BaseClass):
         if len(self._longrun_monitor_control) and erase:
             shutil.rmtree('longrun')
     
+    def _set_fluctuant_stimuli(self):
+        if self.fluctuant_stimuli is not None:
+            for target, function, start, stop in self.fluctuant_stimuli:
+                neuron_idcs = self.neuron_idcs(target)
+                
+                Nsteps_total = round(stop/(self.dt/br2.ms))
+                Nsteps_start = round(start/(self.dt/br2.ms))     
+                
+                fluctuant_array = np.zeros(
+                    (Nsteps_total, self.network.basics.struct.n_cells))
+                I_arr = np.asarray(
+                    [0]*Nsteps_start 
+                    + [function(t) for t in np.linspace(
+                        start, stop, Nsteps_total-Nsteps_start, 
+                        endpoint=False)]
+                    )
+                
+                if len(neuron_idcs)>0:
+                    fluctuant_array[:, neuron_idcs] = repmat(
+                        I_arr, len(neuron_idcs), 1
+                        ).transpose()
+                        
+            fluctuant_str = 'fluctuant_array(t, i)'
+            
+        else:
+            fluctuant_array = None
+            fluctuant_str = '0'
+        
+        self.fluctuant_array = fluctuant_array
+        self.fluctuant_str = fluctuant_str
+    
+    def _set_constant_stimuli(self):
+        I_DC = np.zeros(self.network.basics.struct.n_cells_total)
+        if self.constant_stimuli is not None:
+            for target, value in self.constant_stimuli:
+                if len(self.neuron_idcs(target)) > 0:
+                    I_DC[self.neuron_idcs(target)] = value
+         
+        self.neurons.I_DC = I_DC*br2.pA
+    
     def _set_custom_stimuli(self, name, n_source, channel, spike_idcs, 
-                           spike_times, pairs_connected, gmax, pfail):
+                            spike_times, pairs_connected, gmax, pfail):
         
         if isinstance(channel, str):
             channel = [channel]        
@@ -977,10 +1317,7 @@ class Cortex(BaseClass):
     
         self.net.add(longrun_monitor)    
     
-                
-    
- 
-       
+
 @dataclass
 class _NetworkHolder(BaseClass):
     pass
@@ -1027,7 +1364,7 @@ class _StimulatorSetup(BaseClass):
     
 if __name__ == '__main__':
      
-    seed = 3
+    seed = 2
     
       
     constant_stimuli = [
@@ -1040,7 +1377,10 @@ if __name__ == '__main__':
                         dt=0.05,seed=seed,            
                         )
 
-                    
+    cortex.run(3000)
+    
+    import tools
+    tools.raster_plot(cortex)
     # cortex = Cortex.load('AI_set1_factor_100_trial_0_network',
     #constant_stimuli, 'rk4', 0.05)
     

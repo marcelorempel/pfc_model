@@ -9,7 +9,7 @@ from collections import namedtuple
 from scipy.ndimage import gaussian_filter1d as gf1d
 from hmmlearn import hmm
 from scipy.signal import hilbert, butter, lfilter, periodogram
-from .._auxiliar import time_report
+from .._auxiliary import time_report
 
 
 __all__= [
