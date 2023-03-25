@@ -142,10 +142,10 @@ def _SPDfigures(frequency, power, file):
 
     fig.savefig(file)
     
-def fig01(cortex, xlim, path):
+def fig01(cortex, tlim, path):
     if not os.path.isdir(os.path.join(path, 'Figures')):
         os.mkdir(os.path.join(path, 'Figures'))
-    raster_plot(cortex, xlim=xlim, 
+    raster_plot(cortex, tlim=tlim, 
                 savefig=os.path.join(path, 'Figures', 'Fig01.png'))
 
 def fig02(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, path):
@@ -239,10 +239,10 @@ def fig08(frequency, power, path):
 
 
 
-def fig09(cortex, xlim, path):
+def fig09(cortex, tlim, path):
     if not os.path.isdir(os.path.join(path, 'Figures')):
         os.mkdir(os.path.join(path, 'Figures'))
-    raster_plot(cortex, xlim=xlim, 
+    raster_plot(cortex, tlim=tlim, 
                 savefig=os.path.join(path,'Figures','Fig09.png'))
 
 
@@ -269,7 +269,7 @@ def fig13(cortex, pulse0, pulse1, path):
     
     p0_t0, p0_t1 = pulse0
     p1_t0, p1_t1 = pulse1
-    raster_plot(cortex, xlim=(p0_t0-25, p0_t0+60), show=False)
+    raster_plot(cortex, tlim=(p0_t0-25, p0_t0+60), show=False)
     plt.vlines(p0_t0, 0, cortex.neurons.n+15, 
                color='black', linestyle='dotted', linewidth=2)
     plt.vlines(p0_t0, min(cortex.neuron_idcs(('PC_L23', 0))),
@@ -278,7 +278,7 @@ def fig13(cortex, pulse0, pulse1, path):
     plt.text(p0_t0-38, 900, '(a)', fontsize=26)
     plt.savefig(os.path.join(path, 'Figures','Fig13a.png'))
     
-    raster_plot(cortex, xlim=(p1_t0-25, p1_t0+60), show=False)
+    raster_plot(cortex, tlim=(p1_t0-25, p1_t0+60), show=False)
     plt.vlines(p1_t0, 0, cortex.neurons.n+15, color='black',
                linestyle='dotted', linewidth=2)
     plt.vlines(p1_t0, min(cortex.neuron_idcs(('PC_L23', 0))), 
@@ -293,7 +293,7 @@ def fig14(cortex, pulse, path):
         os.mkdir(os.path.join(path, 'Figures'))
     p_t0, p_t1 = pulse
     
-    raster_plot(cortex, xlim=(p_t0-25, p_t1+60), show=False)
+    raster_plot(cortex, tlim=(p_t0-25, p_t1+60), show=False)
     plt.vlines(p_t0, 0, cortex.neurons.n+15, color='black', 
                linestyle='dotted', linewidth=2)
     plt.vlines(p_t0, min(cortex.neuron_idcs(('PC_L23', 0))),
@@ -352,7 +352,7 @@ def _poissonfigures(cortex, pulse0, pulse1, file0, file1):
     p0_t0, p0_t1 = pulse0
     p1_t0, p1_t1 = pulse1
     
-    raster_plot(cortex, xlim=(p0_t0-100, p0_t0+400), show=False)
+    raster_plot(cortex, tlim=(p0_t0-100, p0_t0+400), show=False)
     
     plt.vlines(p0_t0, 0, cortex.neurons.n+15, color='black',
                linestyle='dotted', linewidth=2)
@@ -366,7 +366,7 @@ def _poissonfigures(cortex, pulse0, pulse1, file0, file1):
     
     plt.savefig(file0)
     
-    raster_plot(cortex, xlim=(p1_t0-100, p1_t1+400), show=False)
+    raster_plot(cortex, tlim=(p1_t0-100, p1_t1+400), show=False)
     
     plt.vlines(p1_t0, 0, cortex.neurons.n+15, color='black', 
                linestyle='dotted', linewidth=2)

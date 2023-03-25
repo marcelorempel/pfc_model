@@ -1,9 +1,10 @@
 import numpy as np
 import os
+import logging
 from ._figures import *
-from ..cortex_setup import *
 from .._auxiliary import *
 from ..basics_setup import *
+from pfc_model import *
 from pfc_model.analysis import*
 
 __all__ = ['task1', 'task2', 'task3', 'task4', 'task5', 'task6', 'task7',
@@ -579,26 +580,30 @@ def task8(simulation_dir, seed=None):
 
 @time_report('Task set')
 def task_set(simulation_dir, seed=None):
-    task1(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task1, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task2(simulation_dir)
+    _try_task(task2, simulation_dir)
     print(('='*50 + '\n')*2)
-    task3(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task3, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task4(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task4, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task5(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task5, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task6(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task6, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task7(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task7, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    task8(simulation_dir=simulation_dir, seed=seed)
+    _try_task(task8, simulation_dir=simulation_dir, seed=seed)
     print(('='*50 + '\n')*2)
-    
+   
+def _try_task(func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except BaseException:
+        logging.exception('message')
 
-if __name__=='__main__':
-    
+if __name__=='__main__': 
     simulation_dir = set_simulation_dir()
     seed = 0
 
@@ -610,4 +615,4 @@ if __name__=='__main__':
     # task6(simulation_dir=simulation_dir, seed=seed)
     # task7(simulation_dir=simulation_dir, seed=seed)
     # task8(simulation_dir=simulation_dir, seed=seed)
-    TaskSet(simulation_dir=simulation_dir, seed=seed)
+    task_set(simulation_dir=simulation_dir, seed=seed)
