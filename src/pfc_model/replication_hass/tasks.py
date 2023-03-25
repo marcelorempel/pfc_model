@@ -3,7 +3,7 @@ import os
 import logging
 from ._figures import *
 from .._auxiliary import *
-from ..basics_setup import *
+from .._basics_setup import *
 from pfc_model import *
 from pfc_model.analysis import*
 
