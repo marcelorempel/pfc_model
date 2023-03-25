@@ -1089,7 +1089,7 @@ class Cortex(BaseClass):
         unitbr2_dict = self.network.basics.membr.unitbr2_dict
         
         longrun = self._longrun_monitor_control[l]
-        variables = longrun['monitor'].keys()
+        variables = longrun['monitor']._keys()
         
         if (((longrun['stop'] is not None 
                   and longrun['start']<=t1<longrun['stop']) 
@@ -1133,7 +1133,7 @@ class Cortex(BaseClass):
         name_units = self.network.basics.equations.var_units
         unitbr2_dict = self.network.basics.membr.unitbr2_dict
         for longrun in self._longrun_monitor_control:
-            for var in list(longrun['files'].keys()):
+            for var in list(longrun['files']._keys()):
                 longvar = []
                 for file in longrun['files'][var]:                                   
                     longvar.append(np.load(file))  

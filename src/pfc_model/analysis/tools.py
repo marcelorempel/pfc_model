@@ -1,3 +1,5 @@
+"""This script contains functions for network analysis."""
+
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,10 +9,8 @@ from scipy.stats import mannwhitneyu as mwtest
 from scipy.stats import chi2_contingency as chi2
 from collections import namedtuple
 from scipy.ndimage import gaussian_filter1d as gf1d
-from hmmlearn import hmm
-from scipy.signal import hilbert, butter, lfilter, periodogram
+from scipy.signal import periodogram
 from .._auxiliary import time_report
-
 
 __all__= [
     'raster_plot_simple', 'raster_plot', 'get_V_stats', 'get_correlations', 
@@ -19,14 +19,38 @@ __all__= [
     'get_LFP_SPD_from_Itotarray', 'get_ISI_stats',
     'get_ISI_stats_from_spike_trains', 'ISIstats', 'comp_membrparam_rategroup', 
     'contingency', 'comp_synparam_rategroup', 'get_spiking', 
-    'get_membr_params', 'get_hidden_UD', 'get_UD_plots', 'SE_signal', 
-    'PLV_signal_filtered', 'binned_spiking', 'spike_stats', 'Chi2_synchrony',
-    'get_updown_intervals', 'set_updown_time', 'separateUD', 'w_null', 
+    'get_membr_params',  'binned_spiking', 'spike_stats', 'w_null', 
     'w_null_boundaries',
     ]
 
-def raster_plot_simple(cortex, xlim=None, figsize=(18,10), s=3,
+def raster_plot_simple(cortex, tlim=None, figsize=(18,10), s=3,
                        fontsize=24, labelsize=20, savefig=None, show=True):
+    """Get a raster plot from a PFC model after simulation.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.
+    tlim: tuple, optional
+        2-tuple (initial t, final t) of inital and final values (in ms)
+        of the horizontal axis. If not given, no limit is set.
+    figsize: tuple, optional
+        2-tuple defining figure size. If not given, it defaults to
+        (18, 10).
+    s: int or float, optional
+        Size of dots. If not given, it defaults to 3.
+    fontsize: int or float, optional
+        Font-size. If not given, it defaults to 24.
+    labelsize: int or float, optional
+        Font-size in ticks. If not given, it defaults to 20.
+    savefig: str, optional
+        Name of file where the raster plot is to be saved. If not
+        given, the raster plot is not saved.
+    show: bool, optional
+        Whether the raster plot is to be shown and closed. If false,
+        it allows the figure to be further edited using pyplot. If
+        not given, it defaults to True.
+    """
     
     plt.figure(figsize=figsize)
     plt.scatter(cortex.spikemonitor.t_*1000, cortex.spikemonitor.i, s=s)
@@ -34,8 +58,8 @@ def raster_plot_simple(cortex, xlim=None, figsize=(18,10), s=3,
     plt.xlabel('time (ms)', fontsize=fontsize)
     plt.ylabel('neuron index', fontsize=fontsize)
     plt.tick_params(labelsize=labelsize)
-    if xlim is not None:
-        plt.xlim(xlim)
+    if tlim is not None:
+        plt.xlim(tlim)
     
     if savefig is not None:
         plt.savefig(savefig)
@@ -43,9 +67,44 @@ def raster_plot_simple(cortex, xlim=None, figsize=(18,10), s=3,
     if show:
         plt.show()
         plt.close()
+
     
-def raster_plot(cortex, xlim=None, figsize=(18,10), s=5, layerpadding=15,
+def raster_plot(cortex, tlim=None, figsize=(18,10), s=5, layerpadding=15,
                 fontsize=24, labelsize=20, lw=3, savefig=None, show=True):
+    """Get a customized raster plot from a PFC model after simulation.
+    The model must contain only 1 stripe. Dots representing PC are blue 
+    and dots representing IN are red. Neurons in layer L2/3 and L5 are 
+    separated by a horizontal line.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.
+    tlim: tuple, optional
+        2-tuple (initial t, final t) of inital and final values (in ms)
+        of the horizontal axis. If not given, the limit is set from
+        transient to the end of simulation.
+    figsize: tuple, optional
+        2-tuple defining figure size. If not given, it defaults to
+        (18, 10).
+    s: int or float, optional
+        Size of dots. If not given, it defaults to 5.
+    layerpadding: int or float, optional
+        Space between L2/3 and L5. If not given, it default to 15.
+    fontsize: int or float, optional
+        Font-size. If not given, it defaults to 24.
+    labelsize: int or float, optional
+        Font-size in ticks. If not given, it defaults to 20.
+    lw: int or float, optional
+        Width of the line separating L2/3 and L5.
+    savefig: str, optional
+        Name of file where the raster plot is to be saved. If not
+        given, the raster plot is not saved.
+    show: bool, optional
+        Whether the raster plot is to be shown and closed. If false,
+        it allows the figure to be further edited using pyplot. If
+        not given, it defaults to True.
+    """
     
     sp_t = cortex.spikemonitor.t_*1000
     sp_i = cortex.spikemonitor.i
@@ -69,18 +128,16 @@ def raster_plot(cortex, xlim=None, figsize=(18,10), s=5, layerpadding=15,
     IN_L5_isin = np.isin(sp_i, IN_L5idc)
     IN_L5_i = sp_i[IN_L5_isin]
     IN_L5_t = sp_t[IN_L5_isin]
-    
-    
+      
     plt.figure(figsize=figsize)
     plt.scatter(PC_L23_t, PC_L23_i, s=s, color='blue')
     plt.scatter(IN_L23_t, IN_L23_i, s=s, color='red')
     plt.scatter(PC_L5_t, PC_L5_i+layerpadding, s=s, color='blue')
     plt.scatter(IN_L5_t, IN_L5_i+layerpadding, s=s, color='red')
  
-    if xlim is None:
-        xlim = cortex.transient, cortex.neurons.t/br2.ms
-    
-    plt.xlim(xlim)
+    if tlim is None:
+        tlim = cortex.transient, cortex.neurons.t/br2.ms
+    plt.xlim(tlim)
 
     x0, x1 = plt.gca().get_xlim()
     y0, y1 = plt.gca().get_ylim()
@@ -108,7 +165,62 @@ def raster_plot(cortex, xlim=None, figsize=(18,10), s=5, layerpadding=15,
 
 @time_report()
 def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
+    """Get statistical measures of V. 
     
+    This function also analysis V after extracting pre-spikes periods.
+    Pre-spike period is defined here as the period starting when V
+    crosses V_T immediately before a spike and ending in the spike
+    instant.
+    
+    V recording must be defined in neuron_monitors, otherwise this 
+    function raises an exception.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.   
+    neuron_idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    tlim: tuple, optional
+        2-tuple (initial t, final t in ms) indicating window of
+        analysis. If not given, the whole recorded period will be
+        analysed.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+        
+    Returns
+    -------
+    This function returns a 6-tuple (out1, ..., out6).
+    out1: list
+        Mean V. Each value is the mean value of V of a neuron along 
+        the requested window of analysis.
+    out2: list
+        Standard deviation of V. Each value is the standard deviation
+        of V of a neuron along the requested window of analysis.
+    out3: list
+        Mean difference between V and V_T. Each value is the mean value
+        of V - V_T of a neuron along the requested window of analysis.
+    out4: list
+        Mean V after extracting pre-spike periods. Each value is the 
+        mean value of V of a neuron along the requested window of 
+        analysis.
+    out5: list
+        Standard deviation of V after extracting pre-spike periods. 
+        Each value is the standard deviation of V of a neuron along the 
+        requested window of analysis.
+    out6: list
+        Mean difference between V and V_T after extracting pre-spike 
+        periods. Each value is the mean value of V - V_T of a neuron 
+        along the requested window of analysis.
+        
+    Raises
+    ------
+    AttributeError: when V is not recorded.
+    """
     def extract_spikes(Varr, V_T, spike_jump=1):
         
         def get_postspike_positions(Varr, spike_jump=1): 
@@ -142,12 +254,14 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         
         return np.concatenate(interspikes)
     
+    if 'V' not in cortex.recorded._keys():
+        raise AttributeError('V was not recorded.')
+        
     V = cortex.recorded.V.V/br2.mV
-
     if neuron_idcs is not None:
         V = V[neuron_idcs]
     else:
-        neuron_idcs = np.arange(cortex.neurons.n)
+        neuron_idcs = np.arange(cortex.neurons.N)
     
     if tlim is not None:
         t0,t1=tlim
@@ -160,9 +274,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
     Vmean_extracted = []
     Vstd_extracted = []
     V_minus_V_T_mean_extracted = []
-    
-    
-    
+     
     for i in range(V.shape[0]):
         Varr = V[i]
         V_T = cortex.network.membr_params.loc[
@@ -176,8 +288,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         Vmean_extracted.append(np.mean(V_extracted))   
         Vstd_extracted.append(np.std(V_extracted))
         V_minus_V_T_mean_extracted.append(np.mean(V_extracted - V_T))
-            
-    
+                
     if file is not None:
         with open(file, 'w') as f:
             print('V correlations', file=f)
@@ -210,17 +321,65 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
                       np.std(V_minus_V_T_mean_extracted)
                       ), file=f, end='\n\n')
     
-    return (Vmean,Vstd, V_minus_V_T_mean, Vmean_extracted, Vstd_extracted,
+    return (Vmean, Vstd, V_minus_V_T_mean, Vmean_extracted, Vstd_extracted,
             V_minus_V_T_mean_extracted)
   
 
 @time_report('Correlations')
 def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0, 
                      file=None, display=False, display_interval=10):
+    """Get populational mean of Pearson ISI correlations.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.   
+    tlim: tuple, optional
+        2-tuple (initial t, final t) of inital and final values (in ms)
+        of the horizontal axis. If not given, the limit is set from
+        transient to the end of simulation.
+    idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    delta_t: int or float, optional
+        Length of bins (in ms) for correlation analysis. If not given, 
+        it defaults to 2.
+    lags: int, float or list[int, float], optional
+        Value or list of values of requested lags (in ms). If not given,
+        it defaults to 0.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    display: bool, optional
+        Whether progress reports are tobe displayed. If not given, it
+        defaults to False.
+    display_interval: int or float, optional
+        Interval (in percentage of progress) between progress reports
+        (if display=False, it has no effect). If not given. it defaults
+        to 10.
+    
+    Returns
+    -------
+    This function returns a 5-tuple:
+    out1: array
+        Array with lag values (in ms).
+    out2: array
+        mean values of autocorrelation for each lag in out1.
+    out3: array 
+        standard deviation of autocorrelation values for each lag
+        in out1.
+    out4: array 
+        mean values of cross-correlation for each lag in out1.
+    out5: array 
+        standard deviation of cross-correlation values for each lag
+        in out1.
+    """
     
     def get_binned_spiking_trains(cortex, idcs, tlim, delta_t):
         if idcs is None:
-            idcs = np.arange(cortex.neurons.n)
+            idcs = np.arange(cortex.neurons.N)
         elif isinstance(idcs, int):
             idcs = [idcs]
         
@@ -251,7 +410,54 @@ def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0,
 def get_correlations_from_spike_trains(spike_trains, tlim, idcs=None, 
                                        delta_t=2, lags=0, file=None, 
                                        display=False, display_interval=10):
+    """Get populational mean of Pearson ISI correlations.
     
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    spike_trains: list[list]
+       A list of spike trains. Each spike train represents a different
+       neuron and consists of a list with spike instants (in ms).
+    tlim: tuple
+        2-tuple (initial t, final t) of inital and final values (in ms)
+        of the horizontal axis. If not given, the limit is set from
+        transient to the end of simulation.
+    idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    delta_t: int or float, optional
+        Length of bins (in ms) for correlation analysis. If not given, 
+        it defaults to 2.
+    lags: int, float or list[int, float], optional
+        Value or list of values of requested lags (in ms).
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    display: bool, optional
+        Whether progress reports are tobe displayed. If not given, it
+        defaults to False.
+    display_interval: int or float, optional
+        Interval (in percentage of progress) between progress reports
+        (if display=False, it has no effect). If not given. it defaults
+        to 10.
+    
+    Returns
+    -------
+    This function returns a 5-tuple:
+    out1: array
+        Array with lag values (in ms).
+    out2: array
+        mean values of autocorrelation for each lag in out1.
+    out3: array 
+        standard deviation of autocorrelation values for each lag
+        in out1.
+    out4: array 
+        mean values of cross-correlation for each lag in out1.
+    out5: array 
+        standard deviation of cross-correlation values for each lag
+        in out1.
+    """
     def get_binned_spiking_trains(spike_trains, idcs, tlim, delta_t):
         if idcs is None:
             idcs = np.arange(len(spike_trains))
@@ -277,7 +483,49 @@ def get_correlations_from_spike_trains(spike_trains, tlim, idcs=None,
 
 def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False, 
                     display_interval=10):
-     
+    """Get populational mean of Pearson ISI correlations.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    bin_arr: array
+       A 2d-array representing the binned spike trains. Axis 0 must
+       specify neurons and axis 1 must specify time bins; 0 represents
+       no spike and 1 represents spike in the bin.
+    delta_t: int or float, optional
+        Length of bins (in ms) for correlation analysis. If not given, 
+        it defaults to 2.
+    lags: int, float or list[int, float], optional
+        Value or list of values of requested lags (in ms).
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    display: bool, optional
+        Whether progress reports are tobe displayed. If not given, it
+        defaults to False.
+    display_interval: int or float, optional
+        Interval (in percentage of progress) between progress reports
+        (if display=False, it has no effect). If not given. it defaults
+        to 10.
+    
+    Returns
+    -------
+    This function returns a 5-tuple:
+    out1: array
+        Array with lag values (in ms).
+    out2: array
+        mean values of autocorrelation for each lag in out1.
+    out3: array 
+        standard deviation of autocorrelation values for each lag
+        in out1.
+    out4: array 
+        mean values of cross-correlation for each lag in out1.
+    out5: array 
+        standard deviation of cross-correlation values for each lag
+        in out1.
+    """
+    
     def group_correlations(bin_df, lag=0):
         
         def df_shifted(df, target, lag=0):
@@ -327,7 +575,7 @@ def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False,
     
     lags = np.asarray(lags)*delta_t
     
-    auto_mean = np.array(auto_mean)
+    auto_mean = np.asarray(auto_mean)
     auto_std = np.asarray(auto_std)
     cross_mean = np.asarray(cross_mean)
     cross_std = np.asarray(cross_std)
@@ -346,10 +594,29 @@ def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False,
                 print('lag {} ms --> mean: {:.4f},'
                       ' std: {:.4f}'.format(*lag), file=f)
                        
-    return (lags, np.array(auto_mean), np.array(auto_std), 
-            np.array(cross_mean), np.array(cross_std))
+    return lags, auto_mean, auto_std, cross_mean, cross_std
 
-def show_correlations(bin_arr, lag, savefig=None, savedata=None):
+def show_correlations(cortex, lags, savefig=None, savedata=None):
+    """A customized ISI correlation analysis.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.  
+    lags: int, float or list[int, float]
+        Value or list of values of requested lags (in ms).
+    savefig: str, optional
+        File name where figures are to be saved. If not given, the
+        figures are not saved.
+    savedata: str, optional
+        File name where results dataframe is to be saved. If not given,
+        the dataframe is not saved.
+    
+    Returns
+    -------
+    out: dataframe
+        Dataframe containing correlation results.
+    """
     
     if savefig is not None:
         namesplit = savefig.split('.')
@@ -360,9 +627,9 @@ def show_correlations(bin_arr, lag, savefig=None, savedata=None):
         crossfig[-2] = crossfig[-2] + '_cross'
         crossfig='.'.join(crossfig)
          
-    auto_mean, auto_std, cross_mean, cross_std = get_correlations(bin_arr, lag)
+    auto_mean, auto_std, cross_mean, cross_std = get_correlations(cortex, lags)
 
-    lag_ms = lag*5
+    lag_ms = lags*5
     
     plt.figure(figsize=(18,10))
     plt.plot(lag_ms, auto_mean, lw=3)
@@ -401,21 +668,99 @@ def show_correlations(bin_arr, lag, savefig=None, savedata=None):
     return corr_df
                   
 def get_LFP(cortex, invert_Itot=True, population_agroupate='mean'):
+    """
+    Get LFP estimate.
+    
+    LFP is estimated here as the sum of all synaptic currents in the
+    network.
+    
+    I_tot recording must be defined in neuron_monitors, otherwise this 
+    function raises an exception.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.   
+    invert_Itot: bool, optional
+        If I_tot values is to be inverted so that LFP descent
+        represents positive charge influx and populational 
+        excitation.
+    population_agroupate: str, optional.
+        It specifies how the values should be represented. If 'mean',
+        LFP is populational I_tot mean. If 'sum', LFP is populational
+        I_tot sum. If not given, it defaults to 'mean'.
+    
+    Returns
+    -------
+    This function returns a 2-tuple:
+    out1: array
+        Frequency (in Hz).
+    out2: array
+        LFP SPD.
+    
+    Raises
+    ------
+    AttributeError: when I_tot is not recorded.
+    ValueError: when population_agroupate is neither 'sum' nor 'mean'.
+    """
+    
+    if 'I_tot' not in cortex.recorded._keys():
+        raise AttributeError('I_tot was not recorded.')
+    if population_agroupate not in ['mean', 'sum']:
+        raise ValueError("population_agroupate must be 'sum' or 'mean'")
+    
     LFP = cortex.recorded.var('I_tot')/br2.pA
     t_LFP = cortex.recorded.t('I_tot')/br2.ms
     
-    if population_agroupate is not None:
-        if population_agroupate=='mean':
-            LFP = np.mean(LFP, axis=0)
-        elif population_agroupate=='sum':
-            LFP = np.sum(LFP, axis=0)
+    if population_agroupate=='mean':
+        LFP = np.mean(LFP, axis=0)
+    elif population_agroupate=='sum':
+        LFP = np.sum(LFP, axis=0)
         
     if invert_Itot:
         LFP = -LFP
         
     return t_LFP, LFP
 
-def get_LFP_SPD(cortex, log=True, sigma=0, population_agroupate='mean'):
+def get_LFP_SPD(cortex, log=True, sigma=None, population_agroupate='mean'):
+    """ Get LFP spectral power density.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.   
+    log: bool, optional
+        Whether SPD is to be represented as log-log graph. If not
+        given, it defaults to True.
+    sigma: int or float, optional
+        Standard deviation of 1d-gaussian filter to be applied on SPD. 
+        If not given, gaussian filter is not applied.        
+    population_agroupate: str, optional.
+        It specifies how LFP values should be represented. If 'mean',
+        LFP is populational I_tot mean. If 'sum', LFP is populational
+        I_tot sum. If not given, it defaults to 'mean'.
+    
+    Returns
+    -------
+    This function returns a 2-tuple:
+    out1: array
+        Frequency (in Hz).
+    out2: array
+        LFP SPD.
+    
+    Raises
+    ------
+    AttributeError: when I_tot is not recorded.
+    ValueError: when population_agroupate is neither 'sum' nor 'mean';
+    when sigma <= 0.
+    """
+    
+    if 'I_tot' not in cortex.recorded._keys():
+        raise AttributeError('I_tot was not recorded.')
+    if population_agroupate not in ['mean', 'sum']:
+        raise ValueError("population_agroupate must be 'sum' or 'mean'")
+    if isinstance(sigma, (int, float)) and sigma <= 0:
+        raise ValueError('sigma must be greater than 0')
     
     t, LFP = get_LFP(
         cortex, invert_Itot=False, population_agroupate=population_agroupate
@@ -428,30 +773,83 @@ def get_LFP_SPD(cortex, log=True, sigma=0, population_agroupate='mean'):
         power = np.log(power[frequency>0])
         frequency = np.log(frequency[frequency>0])
        
-    
-    if sigma>0:
+    if sigma is not None:
         power = gf1d(power, sigma)
     
     return frequency, power
     
-def get_LFP_SPD_from_Itotarray(Itotarray, fq, log=True, sigma=0):
-
-    frequency, power = periodogram(Itotarray, fq)
+def get_LFP_SPD_from_Itotarray(Itotarray, fs, log=True, sigma=None):
+    """ Get LFP spectral power density.
+    
+    Parameters
+    ----------
+    Itotarray: array_like   
+        Array containing LFP estimate.
+    fs: int or float
+        Frequency of sampling (in Hz).
+    log: bool, optional
+        Whether SPD is to be represented as log-log graph. If not
+        given, it defaults to True.
+    sigma: int or float, optional
+        Standard deviation of 1d-gaussian filter to be applied on SPD. 
+        If not given, gaussian filter is not applied.        
+    
+    Returns
+    -------
+    This function returns a 2-tuple:
+    out1: array
+        Frequency (in Hz).
+    out2: array
+        LFP SPD.
+    
+    Raises
+    ------
+    ValueError: when sigma <= 0.
+    """
+    
+    if isinstance(sigma, (int, float)) and sigma <= 0:
+        raise ValueError('sigma must be greater than 0')
+        
+    Itotarray = np.asarray(Itotarray)
+    frequency, power = periodogram(Itotarray, fs)
     
     if log:
         power = np.log(power[frequency>0])
-        frequency = np.log(frequency[frequency>0])
-       
-    
-    if sigma>0:
+        frequency = np.log(frequency[frequency>0])    
+    if sigma is not None:
         power = gf1d(power, sigma)
     
     return frequency, power
     
+
+def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, file=None):
+    """Get statistical measures of ISIs.
     
-
-
-def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, savetxt=None):
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.   
+    neuron_idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    tlim: tuple, optional
+        2-tuple (initial t, final t in ms) indicating window of
+        analysis. If not given, the whole recorded period will be
+        analysed.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    This function returns a 2-tuple
+    out1: list
+        Mean ISI for each requested neuron.
+    out2: list
+        Coefficient of variation for each requested neuron.
+    """
     
     spike_trains = [*cortex.spikemonitor.spike_trains().values()]
     
@@ -464,12 +862,40 @@ def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, savetxt=None):
         spike_trains = [train[(train>=t0)&(train<t1)] 
                         for train in spike_trains]
      
-    return ISIstats(spike_trains, savetxt)
+    return ISIstats(spike_trains, file)
    
  
 def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None, 
-                                    savetxt=None):
-       
+                                    file=None):
+    """Get statistical measures of ISIs.
+    
+    A summary of results can be saved to a specified file.
+    
+    Returns
+    -------
+    spike_trains: list[list]
+       A list of spike trains. Each spike train represents a different
+       neuron and consists of a list with spike instants (in ms).  
+    neuron_idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    tlim: tuple, optional
+        2-tuple (initial t, final t in ms) indicating window of
+        analysis. If not given, the whole recorded period will be
+        analysed.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+        
+    Returns
+    -------
+    This function returns a 2-tuple
+    out1: list
+        Mean ISI for each requested neuron.
+    out2: list
+        Coefficient of variation for each requested neuron.
+    """
+    
     if neuron_idcs is None:
         neuron_idcs = np.arange(len(spike_trains))
     spike_trains = [spike_trains[idc] for idc in neuron_idcs]
@@ -480,10 +906,31 @@ def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None,
         spike_trains = [train[(train>=t0)&(train<t1)] 
                         for train in spike_trains]
         
-    return ISIstats(spike_trains, savetxt)
+    return ISIstats(spike_trains, file)
 
 
-def ISIstats(spike_trains, savetxt):
+def ISIstats(spike_trains, file):
+    """Get statistical measures of ISIs.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    spike_trains: list[list]
+       A list of spike trains. Each spike train represents a different
+       neuron and consists of a list with spike instants (in ms).  
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    This function returns a 2-tuple
+    out1: list
+        Mean ISI for each requested neuron.
+    out2: list
+        Coefficient of variation for each requested neuron.
+    """
     
     ISImean = []
     ISICV = []
@@ -493,8 +940,8 @@ def ISIstats(spike_trains, savetxt):
         ISImean.append(np.mean(ISI))
         ISICV.append(np.std(ISI)/np.mean(ISI))
     
-    if savetxt is not None:
-        with open(savetxt,'w') as f:
+    if file is not None:
+        with open(file,'w') as f:
             print('ISI stats\n', file=f)
             print('Cells:', len(ISImean), file=f)
             print('ISImean mean: {:.3f} ms'.format(np.mean(ISImean)), file=f)
@@ -507,6 +954,30 @@ def ISIstats(spike_trains, savetxt):
 
 
 def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
+    """Get comparisons between membrane parameters of neurons with 
+    spiking rate less than and greater or equal to a requested rate 
+    value. The comparisons are carried through Mann-Whitney's U and 
+    Student's t tests.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance. 
+    rate: int or float
+        Separating rate value (in Hz).
+    groupstripe_list: tuple or list
+        Information on neurons to be compared (as in cortex.neuron_idcs).
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    out: dict
+        Dictionary holding comparison results.
+    """
     
     def save_membrparam_rategroup(group_dict, rate, file):
         
@@ -560,12 +1031,7 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
     Stats = namedtuple('Stats', ['mean', 'std', 'n'])
     
     if isinstance(groupstripe_list[0], (int, str)):
-        groupstripe_list = [groupstripe_list]
-         
-    # less_group_dict = {}
-    # geq_group_dict = {}
-    # mwtest_group_dict = {}
-    
+        groupstripe_list = [groupstripe_list]    
     group_dict = {}
     
     for groupstripe in groupstripe_list:
@@ -623,6 +1089,38 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
 def contingency(cortex, rate, target_groupstripe, source_groupstripe, 
                 channel=None, file=None):
     
+    """Get comparisons between connection probabilities based on 
+    spiking post-synaptic neuron rate less than and greater or equal 
+    to a requested rate value. The comparisons are carried through a
+    contingency table.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance. 
+    rate: int or float
+        Separating rate value (in Hz).
+    target_groupstripe: tuple or list
+        Information on post-synaptic (target) neurons (as in 
+        cortex.neuron_idcs).
+    source_groupstripe: tuple or list
+        Information on pre-synaptic (source) neurons (as in 
+        cortex.neuron_idcs).
+    channels: str, optional
+        Name of requested synaptic channel. If not given,
+        default to all synapses.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    out: dict
+        Dictionary holding comparison results.
+    """
+    
     def save_contingency(group_dict, rate, file, channel):
         
         with open(file, 'w') as f:
@@ -674,11 +1172,7 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
             gsname = ('to_{}_stripe_{}_from_{}_stripe_{}'
                       .format(target_group, target_stripe, 
                               source_group, source_stripe))
-          
-        
-            
-            
-            
+
             syn_less = cortex.syn_idcs_from_neurons(target_cell_less, 
                                                     source_cell, channel)
             syn_geq = cortex.syn_idcs_from_neurons(target_cell_geq, 
@@ -687,9 +1181,7 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
             Ncon_less = len(syn_less)
             Ntot_less = len(target_cell_less) * len(source_cell)
             Ndis_less = Ntot_less - Ncon_less
-
-
-            
+  
             Ncon_geq = len(syn_geq)
             Ntot_geq = len(target_cell_geq) * len(source_cell)
             Ndis_geq = Ntot_geq - Ncon_geq
@@ -708,6 +1200,34 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
     
 def comp_synparam_rategroup(cortex, rate, target_groupstripe, 
                             source_groupstripe, channel=None, file=None):
+    """Get comparisons between synaptic parameters of neurons with 
+    post-synaptic spiking rate less than and greater or equal to a 
+    requested rate value. The comparisons are carried through 
+    Mann-Whitney's U and Student's t tests.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance. 
+    rate: int or float
+        Separating rate value (in Hz).
+    target_groupstripe: tuple or list
+        Information on post-synaptic (target) neurons (as in 
+        cortex.neuron_idcs).
+    source_groupstripe: tuple or list
+        Information on pre-synaptic (source) neurons (as in 
+        cortex.neuron_idcs).
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    out: dict
+        Dictionary holding comparison results.
+    """
     
     def save_synparam_rategroup(group_dict, rate, file, channel):
         with open(file, 'w') as f:
@@ -760,12 +1280,9 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
                     print('-'*40, file=f)
                 print('='*40, file=f)
                 print('='*40, file=f)
-             
-            
-       
+
     if isinstance(target_groupstripe[0], (int, str)):
-        target_groupstripe = [target_groupstripe]
-         
+        target_groupstripe = [target_groupstripe]         
     if isinstance(source_groupstripe[0], (int, str)):
         source_groupstripe = [source_groupstripe]
     
@@ -791,9 +1308,6 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
                                                     source_cell, channel)
             syn_geq = cortex.syn_idcs_from_neurons(target_cell_geq, 
                                                    source_cell, channel)
-            # print(syn_less)
-            # input()
-            # return syn_less
             param_dict={}
             for k in cortex.network.syn_params:
                 for par in (cortex.network.syn_params[k]
@@ -823,14 +1337,37 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
             
             group_dict[gsname] = param_dict
 
-            
-
     if file is not None:
         save_synparam_rategroup(group_dict, rate, file, channel)
         
     return group_dict
     
 def get_spiking(cortex, rate, groupstripe, file=None):
+    """Get fraction of spiking neurons based on a threshold rate
+    value.
+    
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance. 
+    rate: int or float
+        Threshold rate value (in Hz).
+    groupstripe_list: tuple or list
+        Information on neurons to be compared (as in cortex.neuron_idcs).
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    This function returns a 2-tuple.
+    out1: float
+        Fraction of spiking neurons.
+    out2: float
+        Fraction of not-spiking neurons.
+    """
     Ntotal = cortex.network.basics.struct.n_cells_total
     Nspiking = len(cortex.spiking_idcs((np.greater_equal, rate), groupstripe))
     Nnotspiking = len(cortex.spiking_idcs((np.less, rate), groupstripe))
@@ -847,17 +1384,48 @@ def get_spiking(cortex, rate, groupstripe, file=None):
                   .format(Pspiking*100, Nspiking), file=f)
             print('Not spiking: {:.2f} % ({} cells)'
                   .format(Pnotspiking*100, Nnotspiking), file=f)
-            
-    
+              
     return Pspiking, Pnotspiking
 
 
 def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
+    """Get mean and standard deviation of membrane parameters of
+    requestes groups.
     
+    A summary of results can be saved to a specified file.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance. 
+    groupstripe_list: tuple or list
+        Information on requested groups of neurons (as in 
+        cortex.neuron_idcs).
+    alias_list: list, optional
+        Aliases for the groups specified in groupstripe_list.
+    file: str, optional
+        Name of file where the summary of results is to be saved. If
+        not given, no summary is created.
+    
+    Returns
+    -------
+    out1: dict
+        Dictionary with requested statistical measures.
+    
+    Raises
+    ------
+    ValueError: if the length of alias_list is not he same as 
+    groupstripe_list's.  
+    """
     
     if isinstance(groupstripe_list[0], (str, int)):
         groupstripe_list = [groupstripe_list]
     
+    if alias_list is not None:
+        if len(alias_list) != len(groupstripe_list):
+            raise ValueError("Length of alias_list has to be the same"
+                             " as groupstripe_list's.")
+                            
     group_dict = {}
     for groupstripe in groupstripe_list:
         gsname = 'group_{}_stripe_{}'.format(*groupstripe)
@@ -865,8 +1433,6 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
         
         param_dict = {}
         for par in cortex.network.membr_params.coords['par'].values:
-            
-            
             param_values = cortex.network.membr_params.loc[
                 dict(par=par, cell_index=neuron_idcs)
                 ].values
@@ -896,129 +1462,34 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
     
     return group_dict
 
-def get_hidden_UD(var):
-
-    scores = list()
-    models = list()
-    n_states = 2
-    for n_components in range(1,n_states+1):
-        for idx in range(10):  
-            model = hmm.PoissonHMM(n_components=n_components, random_state=idx,
-                                   n_iter=10)
-            model.fit(var[:, None])
-            models.append(model)
-            scores.append(model.score(var[:, None]))
-           
-    model = models[np.argmax(scores)]
-    states = model.predict(var[:, None])
-    
-    if model.lambdas_[1,0]<model.lambdas_[0,0]:
-        states = 1 - states
-    
-    return states
-
-def get_UD_plots(states, t0, t1, dt, down_value=0, up_value=1):
-    
-    new_states = states.copy()
-    new_states = new_states.astype(float)
-    t = np.arange(t0, t1, dt)
-    
-    new_states[new_states==0] = down_value
-    new_states[new_states==1] = up_value
-    
-    return t, new_states
-
-
-def SE_signal(cortex, flim=None, return_periodogram=False):
-   
-    def xlogx(x):
-       
-        x = np.asarray(x)
-        xlogx = np.zeros(x.shape)
-        xlogx[x < 0] = np.nan
-        valid = x > 0
-        xlogx[valid] = x[valid] * np.log(x[valid]) / np.log(2)
-        return xlogx
-    
-    frequency, power = get_LFP_SPD(cortex, log=False)
-    
-    if flim is not None:
-        f0, f1 = flim
-        f_bool = np.where((frequency>= f0)&(frequency<f1))[0]
-        frequency = frequency[f_bool]
-        power = power[f_bool]
-    
-    power_normal = power / power.sum()
-    se = -xlogx(power_normal).sum()
-
-    se /= np.log2(len(power_normal))
-    if return_periodogram:
-        return se, frequency, power
-    else:
-        return se
-  
-def PLV_signal_filtered(sgn_list, time_list, t0, t1, lowcut, highcut, fs=20000,
-                        order=1):
-    
-    def PLV_signal(sgn_list, time_list, t0, t1):
-        
-        def phase_signal(sign_arr, time_arr, t0, t1):
-            
-            bool_arr = np.where((time_arr>=t0) & (time_arr<t1))[0]
-            t_arr = time_arr[bool_arr] - t0
-            signal = sign_arr[bool_arr]
-            
-            analytic_signal = hilbert(signal)
-            instantaneous_phase = np.unwrap(np.angle(analytic_signal))
-            
-            return t_arr, instantaneous_phase  
-        
-        def PLV_from_phase_diff(theta1, theta2):
-            complex_phase_diff = np.exp(complex(0,1)*(theta1 - theta2))
-            plv = np.abs(np.sum(complex_phase_diff))/len(theta1)
-            return plv           
-
-        phase_list = []
-        for i in range(len(sgn_list)):
-            phase_list.append(phase_signal(sgn_list[i], time_list, t0, t1)[1])
-        
-        pop = []
-        Ntot = len(phase_list) * (len(phase_list)-1)/2
-
-        # last = 0
-        # j=0
-        for i in range(len(phase_list)):
-            for k in range(0, i):
-                
-                pop.append(PLV_from_phase_diff(phase_list[i],phase_list[k]))
-                # j+=1
-             
-                # if (100*j/Ntot)//10>last:
-                #     last = (100*j/Ntot)//10
-                #     print('{}% concluded'.format(int(100*j/Ntot)))
-      
-        return np.mean(pop)
-
-    
-    filtered_sgn_list = []
-    
-    for i in range(len(sgn_list)):
-        filtered_sgn_list.append(_butter_bandpass_filter(sgn_list[i], lowcut, 
-                                                        highcut, fs, order))
-    
-    return PLV_signal(filtered_sgn_list, time_list, t0, t1)
-
-def _butter_bandpass(lowcut,  highcut, fs, order=5):
-    return butter(order, [lowcut, highcut], fs=fs, btype='band')
-
-def _butter_bandpass_filter(data, lowcut, highcut, fs=20000, order=1):
-    b, a = _butter_bandpass(lowcut, highcut, fs, order=order)
-    y = lfilter(b, a, data)
-    return y
 
 def binned_spiking(cortex, idcs=None, tlim=None, delta_t=5):
+    """Get binned spiking arrays. Axis 0 defines neurons and axis 1
+    defines time.
+    
+    Parameters
+    ----------
+    cortex: Cortex
+        A PFC model instance.
+    idcs: array_like, optional
+        Indices of neurons that are to be analysed. If not given, all
+        neurons are analysed.
+    tlim: tuple, optional
+        2-tuple (initial t, final t in ms) indicating window of
+        analysis. If not given, the whole recorded period will be
+        analysed.
+    delta_t: int or float, optional
+        Time bin (in ms). If not given, it defaults to 5.
+    
+    Returns
+    -------
+    out: array
+        2d-array representing binned spiking array. Axis 0 defines 
+        neurons and axis 1 defines time.
+    """
+    
     if idcs is None:
-        idcs = np.arange(cortex.neurons.n)
+        idcs = np.arange(cortex.neurons.N)
     elif isinstance(idcs, int):
         idcs = [idcs]
     
@@ -1038,8 +1509,30 @@ def binned_spiking(cortex, idcs=None, tlim=None, delta_t=5):
         
     return bin_arr.astype(int)
    
-def spike_stats(bins, dt=5):
-    bins = bins*1000/dt
+def spike_stats(bins, delta_t=5):
+    """Statistical measures of binned spiking arrays.
+    
+    Parameters
+    ----------
+    bin: array
+        2d-array representing binned spiking array. Axis 0 defines 
+        neurons and axis 1 defines time.
+    delta_t: int or float, optional
+        Time bin (in ms). If not given, it defaults to 5.
+    
+    Returns
+    -------
+    This function returns a 4-tuple.
+    out1: float
+        Mean of populational mean array.
+    out2: float
+        Standard deviation of populational mean array.
+    out3: list
+        List of mean values of individual arrays.
+    out4: list
+        List of standard deviations of individual arrays.
+    """
+    bins = bins*1000/delta_t
     meanspiking = np.mean(bins, axis=0)
     spike_mean = []
     spike_std = []
@@ -1049,70 +1542,61 @@ def spike_stats(bins, dt=5):
         
     return np.mean(meanspiking), np.std(meanspiking), spike_mean, spike_std
 
-def Chi2_synchrony(std_of_Vmean, std_list):
-    return std_of_Vmean**2/np.mean(np.square(std_list))
-
-def get_updown_intervals(tarr, states, min_interval=0, min_t=0):
-    start=0
-    stop=0
-    up = []
-    down=[]
-    
-    for i in range(1, len(states)):
-        if states[i] != states[i-1]:
-            stop = tarr[i]
-            if stop-start >= min_interval and start>=min_t:
-                if states[i-1]==1:
-                    up.append([start, stop])
-                else:
-                    down.append([start, stop])
-            start=stop
-    stop=tarr[-1]+tarr[-1]-tarr[-2]
-    if stop-start >= min_interval and start>=min_t:
-        if states[i-1]==1:
-            up.append([start, stop])
-        else:
-            down.append([start, stop])
-    return up, down
-
-def set_updown_time(tarr, intervals, padding=0):
-    updown = np.asarray([False for i in range(len(tarr))])
-    for start, stop in intervals:
-        updown[np.where((tarr>=start+padding)&(tarr<stop-padding))[0]]=True
-
-    return updown
-
-def separateUD(state):
-    last = state[0]
-    temp_i = 0
-    state_up = []
-    state_down = []
-    row = 0
-    for i in range(1,len(state),1):
-        if state[i]==last:           
-            if row==0:
-                if state[i] == 0:
-                    state_down.append([temp_i, i])
-                else:
-                    state_up.append([temp_i, i])
-            else:
-                if state[i] == 0:
-                    state_down[-1].append(i)
-                else:
-                    state_up[-1].append(i)
-            row+=1
-        else:
-            row=0
-        temp_i = i
-        last=state[i]
-    return state_down, state_up
 
 def w_null(V, memb, I):    
+    """w-nullcline of a neuron. It is defined as values of w as
+    a function of V.
+    
+    Parameters
+    ----------
+    V: int orfloat
+        Value of V (in mV).
+    memb: membranetuple
+        A membranetuple holindg membrane parameters of a neuron.
+    I: int or float
+        Value of current (in pA).
+    
+    Returns
+    -------
+    out: float
+        Value of w on w-nullcline.
+    """
     return (- memb.g_L * (V - memb.E_L) 
             + memb.g_L * memb.delta_T * np.exp((V - memb.V_T)/memb.delta_T) 
             + I)
 
 def w_null_boundaries(self, cortex, idc, I=0, Vlim=None):
+    """Get w-nullcline and the lower and upper boundaries of the
+    second regime of simpAdEx dynamics.
+    
+    Paramters
+    ---------
+    cortex: Cortex
+        A PFC model instance.
+    idc: int
+        Index of the requested neuron.
+    I: int or float, optional
+        Current value (in pA). If not given, it default to 0.
+    vlim: tuple, optional
+        2-tuple (start, stop) indicating the interval of values of V  
+        (in mV) where w-nullcline and simpAdEx boundaries are to be
+        calculated. If not given, the interval between -200 and 0 mV
+        is used.
+
+    Returns
+    -------
+    This function returns a 4-tuple.
+    out1: array     
+        Array of V values (in mV).
+    out2: array        
+        Array of w values (in pA) on w-nullcline.
+    out3: array        
+        Array of w values (in pA) on lower (left) boundary of the
+        second simpAdEx dynamical regime.
+    out4: array        
+        Array of w values (in pA) on upper (right) boundary of the
+        second simpAdEx dynamical regime.
+    """
     
     memb = cortex.get_memb_params(idc)
 
@@ -1126,12 +1610,6 @@ def w_null_boundaries(self, cortex, idc, I=0, Vlim=None):
     
     return Varr, w_null, e_l, e_r
 
-
     
-
-
-
-
-if __name__ == '__main__':
-    
+if __name__ == '__main__':    
     pass

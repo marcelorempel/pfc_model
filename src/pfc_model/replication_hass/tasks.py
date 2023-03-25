@@ -7,6 +7,8 @@ from .._basics_setup import *
 from pfc_model import *
 from pfc_model.analysis import*
 
+
+
 __all__ = ['task1', 'task2', 'task3', 'task4', 'task5', 'task6', 'task7',
            'task8', 'task_set']
 
@@ -607,7 +609,7 @@ if __name__=='__main__':
     simulation_dir = set_simulation_dir()
     seed = 0
 
-    # task1(simulation_dir=simulation_dir, seed=seed)
+    task1(simulation_dir=simulation_dir, seed=seed)
     # task2(simulation_dir)
     # task3(simulation_dir=simulation_dir, seed=seed
     # task4(simulation_dir=simulation_dir, seed=seed)
@@ -615,4 +617,4 @@ if __name__=='__main__':
     # task6(simulation_dir=simulation_dir, seed=seed)
     # task7(simulation_dir=simulation_dir, seed=seed)
     # task8(simulation_dir=simulation_dir, seed=seed)
-    task_set(simulation_dir=simulation_dir, seed=seed)
+    # task_set(simulation_dir=simulation_dir, seed=seed)

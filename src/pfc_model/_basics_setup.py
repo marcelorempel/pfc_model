@@ -1460,13 +1460,13 @@ class _GroupSetup(BaseClass):
 @dataclass
 class _StructureSetup(BaseClass):      
     n_cells_prompt: int
-    p_cells_per_group: list or np.array
+    p_cells_per_group: xr.DataArray
     groups: _GroupSetup
     stripes: dict
     conn: any
     n_cells: int = 0
     n_cells_total: int = 0
-    n_cells_per_group: xr.DataArray = xr.DataArray([])
+    n_cells_per_group: xr.DataArray = field(default_factory=xr.DataArray)
         
     def __post_init__(self):
         n_cells_per_group = np.ceil(
