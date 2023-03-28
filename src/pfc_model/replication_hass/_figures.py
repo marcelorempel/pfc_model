@@ -91,7 +91,7 @@ def _ISIfigures(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, file):
     plt.show()
     plt.close()
 
-def _autoCfigures(C_lags, autoC_mean, file):
+def _autoCfigures(C_lags, autoC_mean, file, xmax=100):
     fig, [ax0, ax1] = plt.subplots(1, 2, figsize=(18,10))
     fig.subplots_adjust(left=0.1,
                         bottom=0.1, 
@@ -99,16 +99,17 @@ def _autoCfigures(C_lags, autoC_mean, file):
                         top=0.9, 
                         wspace=0.35, 
                         hspace=0.1)
+        
     
     ax0.plot(C_lags, autoC_mean)
-    ax0.set_xlim(-10, 300)
+    ax0.set_xlim(-10, xmax)
     ax0.set_xlabel('lag (ms)', fontsize=26)
     ax0.set_ylabel('autocorrelation', fontsize=26)
     ax0.tick_params(labelsize=26)
     
     
     ax1.plot(C_lags[1:], autoC_mean[1:])
-    ax1.set_xlim(2, 300)
+    ax1.set_xlim(2, xmax)
     ax1.set_xlabel('lag (ms)', fontsize=26)
     ax1.set_ylabel('autocorrelation', fontsize=26)
     plt.sca(ax1)
@@ -152,7 +153,7 @@ def fig02(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, path):
     if not os.path.isdir(os.path.join(path, 'Figures')):
         os.mkdir(os.path.join(path,'Figures'))
     _ISIfigures(ISImean, ISICV, C_lags, crossC_mean, Correlation_sigma, 
-                os.join(path, 'Figures', 'Fig02.png'))
+                os.path.join(path, 'Figures', 'Fig02.png'))
     
 def fig03(C_lags, autoC_mean, path):
     if not os.path.isdir(os.path.join(path, 'Figures')):
@@ -270,7 +271,7 @@ def fig13(cortex, pulse0, pulse1, path):
     p0_t0, p0_t1 = pulse0
     p1_t0, p1_t1 = pulse1
     raster_plot(cortex, tlim=(p0_t0-25, p0_t0+60), show=False)
-    plt.vlines(p0_t0, 0, cortex.neurons.n+15, 
+    plt.vlines(p0_t0, 0, cortex.neurons.N+15, 
                color='black', linestyle='dotted', linewidth=2)
     plt.vlines(p0_t0, min(cortex.neuron_idcs(('PC_L23', 0))),
                max(cortex.neuron_idcs(('PC_L23', 0))), 
@@ -279,7 +280,7 @@ def fig13(cortex, pulse0, pulse1, path):
     plt.savefig(os.path.join(path, 'Figures','Fig13a.png'))
     
     raster_plot(cortex, tlim=(p1_t0-25, p1_t0+60), show=False)
-    plt.vlines(p1_t0, 0, cortex.neurons.n+15, color='black',
+    plt.vlines(p1_t0, 0, cortex.neurons.N+15, color='black',
                linestyle='dotted', linewidth=2)
     plt.vlines(p1_t0, min(cortex.neuron_idcs(('PC_L23', 0))), 
                max(cortex.neuron_idcs(('PC_L23', 0))), 
@@ -294,12 +295,12 @@ def fig14(cortex, pulse, path):
     p_t0, p_t1 = pulse
     
     raster_plot(cortex, tlim=(p_t0-25, p_t1+60), show=False)
-    plt.vlines(p_t0, 0, cortex.neurons.n+15, color='black', 
+    plt.vlines(p_t0, 0, cortex.neurons.N+15, color='black', 
                linestyle='dotted', linewidth=2)
     plt.vlines(p_t0, min(cortex.neuron_idcs(('PC_L23', 0))),
                max(cortex.neuron_idcs(('PC_L23', 0))), 
                color='purple', linestyle='--', linewidth=3)
-    plt.text(p_t0-38, 900, '(a)', fontsize=26)
+    # plt.text(p_t0-38, 900, '(a)', fontsize=26)
     plt.savefig(os.path.join(path,'Figures','Fig14.png'))
     
     
@@ -339,8 +340,14 @@ def fig15(Membr_std_list, PC_L23, PC_L5, path):
     plt.errorbar(variability, PC_L5_mean, yerr = PC_L5_SEM, fmt = 'o', 
                  color = 'orange', ecolor = 'orange', elinewidth = 2, 
                  capsize=3)
-    plt.xlim(-20, 120)
+    plt.xlim(-10, 120)
     plt.xticks([0, 50, 100])
+    props23 = dict(boxstyle='round', facecolor='blue', alpha=0.2)
+    props5 = dict(boxstyle='round', facecolor='orange', alpha=0.2)
+    plt.text(45, 110, 'PC L23 100%: {:.1f} spikes'.format(np.mean(PC_L23[-1])), 
+             fontsize=26, bbox=props23)
+    plt.text(45, 15, 'PC L5   100%: {:.1f} spikes'.format(np.mean(PC_L5[-1])),
+             fontsize=26, bbox=props5)
     plt.legend(prop={'size': 26})
     plt.savefig(os.path.join(path,'Figures','Fig15.png'))
     
@@ -354,9 +361,9 @@ def _poissonfigures(cortex, pulse0, pulse1, file0, file1):
     
     raster_plot(cortex, tlim=(p0_t0-100, p0_t0+400), show=False)
     
-    plt.vlines(p0_t0, 0, cortex.neurons.n+15, color='black',
+    plt.vlines(p0_t0, 0, cortex.neurons.N+15, color='black',
                linestyle='dotted', linewidth=2)
-    plt.vlines(p0_t1, 0, cortex.neurons.n+15, color='black',
+    plt.vlines(p0_t1, 0, cortex.neurons.N+15, color='black',
                linestyle='dotted', linewidth=2)
     
     plt.vlines(p0_t0, min(PC_L23), max(PC_L23), color='purple', 
@@ -368,9 +375,9 @@ def _poissonfigures(cortex, pulse0, pulse1, file0, file1):
     
     raster_plot(cortex, tlim=(p1_t0-100, p1_t1+400), show=False)
     
-    plt.vlines(p1_t0, 0, cortex.neurons.n+15, color='black', 
+    plt.vlines(p1_t0, 0, cortex.neurons.N+15, color='black', 
                linestyle='dotted', linewidth=2)
-    plt.vlines(p1_t1, 0, cortex.neurons.n+15, color='black', 
+    plt.vlines(p1_t1, 0, cortex.neurons.N+15, color='black', 
                linestyle='dotted', linewidth=2)
     
     plt.vlines(p1_t0, min(PC_L5), max(PC_L5), color='purple',

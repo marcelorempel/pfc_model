@@ -134,7 +134,7 @@ class Cortex(BaseClass):
     @time_report('Cortex setup (with network loading)')
     def load(path, constant_stimuli, method, dt, transient=0, 
              fluctuant_stimuli=None, cortex_neuron_scales=None,
-             cortex_syn_scales=None):
+             cortex_syn_scales=None, alternative_basics_setup=None):
         """Set a model instance from previously saved data.
         
         Parameters
@@ -161,6 +161,9 @@ class Cortex(BaseClass):
         cortex_syn_scales: dict, optional
             Dictionary with synaptic parameter scales. If not given, no
             scaling in membrane parameters is set.
+         alternative_basics_setup: function
+             Alternative basics setup function. If not given, basics_setup
+             from _basics_setup is used.
         
         Returns
         -------
@@ -507,7 +510,7 @@ class Cortex(BaseClass):
                                  gmax, pfail)
     
     
-    def set_neuron_monitors(self, name, variables, groupstripe_list, 
+    def set_neuron_monitors(self, name, variables, neuron_idcs, 
                             start=None, stop=None):
         """Set monitor of neuron variables. The monitor can be accessed
         in neuron_monitors.
@@ -521,8 +524,8 @@ class Cortex(BaseClass):
             Name of monitor.
         variables:
             Neuron variables that are to be monitored.
-        groupstripe_list: list or tuple
-            Monitored group information as in neuron_idcs.
+        neuron_idcs: array_like
+            Indices from neurons to be recorded.
         start: float, optional
             Start instant (in ms). If not given, it defaults to
             transient (instance attribute).
@@ -533,15 +536,13 @@ class Cortex(BaseClass):
         
         if isinstance(variables, str):
             variables = [variables]
-        
-        neuron_idc =self.neuron_idcs(groupstripe_list)
               
         self.neuron_monitors[name] =  br2.StateMonitor(
-            self.neurons, variables, neuron_idc, dt=self.dt)
+            self.neurons, variables, neuron_idcs, dt=self.dt)
         self._set_monitors(self.neuron_monitors[name], variables, start, stop)
         
-    def set_synapse_monitors(self, name, variables, target_groupstripe_list, 
-                             source_groupstripe_list, start=None, stop=None):
+    def set_synapse_monitors(self, name, variables, syn_idcs, 
+                             start=None, stop=None):
         """Set monitor of synaptic variables. The monitor can be accessed
         in neuron_monitors.
         
@@ -554,8 +555,8 @@ class Cortex(BaseClass):
             Name of monitor.
         variables:
             Synaptic variables that are to be monitored.
-        groupstripe_list: list or tuple
-            Monitored group information as in neuron_idcs.
+        syn_idcs: array_like
+            Indices from synapses to be recorded.
         start: float, optional
             Start instant (in ms). If not given, it defaults to
             transient (instance attribute).
@@ -565,16 +566,13 @@ class Cortex(BaseClass):
         """
         if isinstance(variables, str):
             variables = [variables]
-        
-        syn_idc = self.syn_idcs_from_groups(target_groupstripe_list, 
-                                            source_groupstripe_list)
           
         self.synapse_monitors[name] =  br2.StateMonitor(
-            self.neurons, variables, syn_idc, dt=self.dt)
+            self.synapses, variables, syn_idcs, dt=self.dt)
         self._set_monitors(self.synapse_monitors[name], variables, start, stop)      
     
 
-    def set_longrun_neuron_monitors(self, name, variables, groupstripe_list, 
+    def set_longrun_neuron_monitors(self, name, variables, neuron_idcs,
                                     interval, start=None, stop=None, 
                                     population_agroupate=None):
         """Set monitor of neuron variables for long run simulations.
@@ -595,8 +593,8 @@ class Cortex(BaseClass):
             Name of monitor.
         variables:
             Neuron variables that are to be monitored.
-        groupstripe_list: list or tuple
-            Monitored group information as in neuron_idcs.
+        neuron_idcs: array_like
+            Indices from neurons to be recorded.
         start: float, optional
             Start instant (in ms). If not given, it defaults to
             transient (instance attribute).
@@ -607,10 +605,8 @@ class Cortex(BaseClass):
         if isinstance(variables, str):
             variables = [variables]
         
-        neuron_idc =self.neuron_idcs(groupstripe_list)
-              
         self.longrun_neuron_monitors[name] =  br2.StateMonitor(
-            self.neurons, variables, neuron_idc, dt=self.dt)
+            self.neurons, variables, neuron_idcs, dt=self.dt)
         self.longrun_neuron_monitors[name].active = False
         self.neuron_monitors[name] = _NetworkHolder()
         self.neuron_monitors[name].t = None
@@ -622,8 +618,8 @@ class Cortex(BaseClass):
             variables, interval, start, stop, population_agroupate)
         
     def set_longrun_synapse_monitors(
-            self, name, variables, target_groupstripe_list, 
-            source_groupstripe_list,  interval, start=None, stop=None,
+            self, name, variables, syn_idcs, 
+            interval, start=None, stop=None,
             population_agroupate=None):
         """Set monitor of synaptic  variables for long run simulations.
         The simulation is divided in segments, and monitor data are
@@ -643,8 +639,8 @@ class Cortex(BaseClass):
             Name of monitor.
         variables:
             Neuron variables that are to be monitored.
-        groupstripe_list: list or tuple
-            Monitored group information as in neuron_idcs.
+        syn_idcs: array_like
+            Indices from synapses to be recorded.
         start: float, optional
             Start instant (in ms). If not given, it defaults to
             transient (instance attribute).
@@ -656,11 +652,9 @@ class Cortex(BaseClass):
         if isinstance(variables, str):
             variables = [variables]
         
-        syn_idc = self.syn_idcs_from_groups(target_groupstripe_list, 
-                                            source_groupstripe_list)
           
         self.longrun_synapse_monitors[name] =  br2.StateMonitor(
-            self.neurons, variables, syn_idc, dt=self.dt)
+            self.synapses, variables, syn_idcs, dt=self.dt)
         self.longrun_synapse_monitors[name].active = False
         self.synapse_monitors[name] = _NetworkHolder()
         self.synapse_monitors[name].t = None
@@ -809,7 +803,7 @@ class Cortex(BaseClass):
         for relation, comparison_rate in comparisons: 
             idc_bool_list.append(relation(rate, comparison_rate))
         
-        sp_idc = np.arange(self.neurons.n)
+        sp_idc = np.arange(self.neurons.N)
         
         if groupstripe is not None:
             neuronidc = self.neuron_idcs(groupstripe)
@@ -863,7 +857,7 @@ class Cortex(BaseClass):
                 t0,t1 = tlim
             
             if neuron_idcs is None:
-                neuron_idcs = np.arange(self.neurons.n)
+                neuron_idcs = np.arange(self.neurons.N)
             else:
                 neuron_idcs = np.asarray(neuron_idcs)
                 
@@ -1133,7 +1127,7 @@ class Cortex(BaseClass):
         name_units = self.network.basics.equations.var_units
         unitbr2_dict = self.network.basics.membr.unitbr2_dict
         for longrun in self._longrun_monitor_control:
-            for var in list(longrun['files']._keys()):
+            for var in list(longrun['files'].keys()):
                 longvar = []
                 for file in longrun['files'][var]:                                   
                     longvar.append(np.load(file))  
@@ -1147,7 +1141,7 @@ class Cortex(BaseClass):
                                            *unitbr2_dict[name_units[var]])
                 
         if len(self._longrun_monitor_control) and erase:
-            shutil.rmtree('longrun')
+            shutil.rmtree('longrun', onerror=remove_read_only)
     
     def _set_fluctuant_stimuli(self):
         if self.fluctuant_stimuli is not None:
@@ -1364,7 +1358,7 @@ class _StimulatorSetup(BaseClass):
     
 if __name__ == '__main__':
      
-    seed = 2
+    seed = 0
     
       
     constant_stimuli = [
@@ -1372,17 +1366,24 @@ if __name__ == '__main__':
                         [('IN', 0), 200]
                         ]
     
-    cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
-                        constant_stimuli=constant_stimuli, method='rk4',
-                        dt=0.05,seed=seed,            
-                        )
-
-    cortex.run(3000)
+    # cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
+    #                     constant_stimuli=constant_stimuli, method='rk4',
+    #                     dt=0.05,seed=seed,            
+    #                     )
     
-    import tools
-    tools.raster_plot(cortex)
-    # cortex = Cortex.load('AI_set1_factor_100_trial_0_network',
-    #constant_stimuli, 'rk4', 0.05)
+    # cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL', 0))
+    # cortex.run(3000)
+    
+    # import tools
+    # tools.raster_plot(cortex)
+    cortex = Cortex.load('tutorial-1_3',
+    constant_stimuli, 'rk4', 0.05, transient=1000)
+    
+    neuron_idc = cortex.neuron_idcs(('ALL', 0))
+    cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
+    syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
+    cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
+    cortex.run(21000)
     
     
     pass

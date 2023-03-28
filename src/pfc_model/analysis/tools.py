@@ -667,7 +667,7 @@ def show_correlations(cortex, lags, savefig=None, savedata=None):
             
     return corr_df
                   
-def get_LFP(cortex, invert_Itot=True, population_agroupate='mean'):
+def get_LFP(cortex, invert_Itot=True, population_agroupate=None):
     """
     Get LFP estimate.
     
@@ -688,7 +688,7 @@ def get_LFP(cortex, invert_Itot=True, population_agroupate='mean'):
     population_agroupate: str, optional.
         It specifies how the values should be represented. If 'mean',
         LFP is populational I_tot mean. If 'sum', LFP is populational
-        I_tot sum. If not given, it defaults to 'mean'.
+        I_tot sum. If not given, the row I_tot array is retrieved.
     
     Returns
     -------
@@ -701,12 +701,13 @@ def get_LFP(cortex, invert_Itot=True, population_agroupate='mean'):
     Raises
     ------
     AttributeError: when I_tot is not recorded.
-    ValueError: when population_agroupate is neither 'sum' nor 'mean'.
+    ValueError: when population_agroupate is str but is neither 'sum' nor 'mean'.
     """
     
     if 'I_tot' not in cortex.recorded._keys():
         raise AttributeError('I_tot was not recorded.')
-    if population_agroupate not in ['mean', 'sum']:
+    if (isinstance(population_agroupate, str) 
+            and population_agroupate not in ['mean', 'sum']):
         raise ValueError("population_agroupate must be 'sum' or 'mean'")
     
     LFP = cortex.recorded.var('I_tot')/br2.pA
@@ -722,7 +723,7 @@ def get_LFP(cortex, invert_Itot=True, population_agroupate='mean'):
         
     return t_LFP, LFP
 
-def get_LFP_SPD(cortex, log=True, sigma=None, population_agroupate='mean'):
+def get_LFP_SPD(cortex, log=True, sigma=None, population_agroupate=None):
     """ Get LFP spectral power density.
     
     Parameters
@@ -738,7 +739,7 @@ def get_LFP_SPD(cortex, log=True, sigma=None, population_agroupate='mean'):
     population_agroupate: str, optional.
         It specifies how LFP values should be represented. If 'mean',
         LFP is populational I_tot mean. If 'sum', LFP is populational
-        I_tot sum. If not given, it defaults to 'mean'.
+        I_tot sum. If not given, the row I_tot array is retrieved.
     
     Returns
     -------
@@ -751,13 +752,14 @@ def get_LFP_SPD(cortex, log=True, sigma=None, population_agroupate='mean'):
     Raises
     ------
     AttributeError: when I_tot is not recorded.
-    ValueError: when population_agroupate is neither 'sum' nor 'mean';
-    when sigma <= 0.
+    ValueError: when population_agroupate is str but is neither 'sum' 
+    nor 'mean'; when sigma <= 0.
     """
     
     if 'I_tot' not in cortex.recorded._keys():
         raise AttributeError('I_tot was not recorded.')
-    if population_agroupate not in ['mean', 'sum']:
+    if (isinstance(population_agroupate, str) 
+            and population_agroupate not in ['mean', 'sum']):
         raise ValueError("population_agroupate must be 'sum' or 'mean'")
     if isinstance(sigma, (int, float)) and sigma <= 0:
         raise ValueError('sigma must be greater than 0')

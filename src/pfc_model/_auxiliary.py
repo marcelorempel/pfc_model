@@ -12,13 +12,18 @@ It contains:
     
     BaseClass: a dataclass which other classes in other modules are
     subclassed from.
+    
+    remove_read_only: a function to bypass erros in shutil.rmtree due
+    to read-only setting.
 """
 
 import os
 import time as tm
 from dataclasses import dataclass
+import stat
 
-__all__ = ['set_working_dir', 'set_simulation_dir', 'time_report', 'BaseClass']
+__all__ = ['set_working_dir', 'set_simulation_dir', 'time_report', 'BaseClass',
+           'remove_read_only']
 
 def set_working_dir(name):
     """Set working directory."""
@@ -59,7 +64,7 @@ def set_simulation_dir(name=None):
         name = file_name
     
     os.mkdir(name)
-    print('REPORT: simulation_dir created:', name, end='\n\n')
+    print('REPORT: Directory created:', name, end='\n\n')
     
     return name
 
@@ -186,3 +191,7 @@ class BaseClass:
     def __setitem__(self, item, value):
         setattr(self, item, value)
     
+def remove_read_only(func, path, excinfo):
+    # Using os.chmod with stat.S_IWRITE to allow write permissions
+    os.chmod(path, stat.S_IWRITE)
+    func(path)

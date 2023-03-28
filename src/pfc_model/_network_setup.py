@@ -326,18 +326,19 @@ class Network(BaseClass):
         with open(os.path.join(path,"input.txt"), 'w') as f:
             print(self.basics.struct.n_cells_prompt, 
                   self.basics.struct.stripes.n, sep='\n', end='', file=f)
-        shutil.copyfile('basics_setup.py', 
-                        os.path.join(path,'basics_setup.py'))
+        # shutil.copyfile('_basics_setup.py', 
+        #                 os.path.join(path,'_basics_setup.py'))
         
         if self.basics.scales is not None:
            with open(os.path.join(path,'basics_scales.json'), 'w') as f:
                json.dump(self.basics.scales, f)
         if self.seed is not None:
-            with open(path+'//seed.txt', 'w') as f:
+            with open(os.path.join(path, 'seed.txt'), 'w') as f:
                 f.write(str(self.seed))
                 
            
-    def load(path, alternative_pcells=None, basics_disp=True):
+    def load(path, alternative_pcells=None, basics_disp=True,
+             alternative_basics_setup=None):
         """Load data from previously generated network.
         
         Parameter
@@ -348,6 +349,9 @@ class Network(BaseClass):
         basics_disp: str
             Set basics display. If not given, warning display may be
             displayed.
+        alternative_basics_setup: function
+            Alternative basics setup function. If not given, basics_setup
+            from _basics_setup is used.
             
         Return
         ------
@@ -392,7 +396,7 @@ class Network(BaseClass):
                     'STSP_params': STSP_params, 'delay': delay}
         
         
-        basics_script = import_module('{}.basics_setup'.format(path))
+        # basics_script = import_module('{}.basics_setup'.format(path))
         
         with open(os.path.join(path, 'input.txt'), 'r') as f:
             prompt_str = f.read()
@@ -409,10 +413,18 @@ class Network(BaseClass):
         if 'seed.txt' in os.listdir(path):
             with open(os.path.join(path, 'seed.txt'), 'r') as f:
                 seed = int(f.read())
-                
-        basics = basics_script.basics_setup(
-            n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
-            basics_disp)
+        
+        if alternative_basics_setup is not None:
+            basics = alternative_basics_setup(
+                n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
+                basics_disp)
+        else:
+            basics = basics_setup(
+                n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
+                basics_disp)
+        # basics = basics_script.basics_setup(
+        #     n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
+        #     basics_disp)
          
         print('REPORT: Network loaded from {}'.format(path), end='\n\n')
         

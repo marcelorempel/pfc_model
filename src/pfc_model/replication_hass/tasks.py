@@ -44,30 +44,31 @@ def task1(simulation_dir, seed=None):
     
     aliases = ['PC', 'fast-spiking cells','bitufted cells', 'basket cells', 
                'Matinotti cells']
-    Tools.get_membr_params(cortex,
-                           [('PC',0), ('IN_L_both',0), ('IN_CL_both',0), 
-                            ('IN_CC',0), ('IN_F',0)], 
-                           alias_list = aliases, 
-                           file=simulation_dir+'//membr_params.txt')
-    Tools.get_spiking(cortex, 0.33, ('PC', 0), 
-                      file=simulation_dir+'\\spiking.txt')
+    get_membr_params(cortex,
+                     [('PC',0), ('IN_L_both',0), ('IN_CL_both',0), 
+                      ('IN_CC',0), ('IN_F',0)], 
+                     alias_list = aliases, 
+                     file=os.path.join(simulation_dir, 'membr_params.txt'))
+    get_spiking(cortex, 0.33, ('PC', 0), 
+                file=os.path.join(simulation_dir, 'spiking.txt'))
     
-    Tools.comp_membrparam_rategroup(
+    comp_membrparam_rategroup(
         cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
-        file=simulation_dir+'\\membr_params_comparison.txt')
+        file=os.path.join(simulation_dir, 'membr_params_comparison.txt'))
     
     for channel in cortex.network.basics.syn.channels.names:
-        Tools.contingency(
+        contingency(
             cortex, 0.33, 
             [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], ('ALL', 0), 
             channel=channel,
-            file=simulation_dir+'\\pcon_contingency_{}.txt'.format(channel))
+            file=os.path.join(simulation_dir, 
+                              'pcon_contingency_{}.txt'.format(channel)))
         
-        Tools.comp_synparam_rategroup(
+        comp_synparam_rategroup(
             cortex, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
             ('ALL', 0), channel=channel, 
-            file=(simulation_dir
-                  + '\\syn_params_comparison_{}.txt'.format(channel)))
+            file=os.path.join(simulation_dir, 
+                              'syn_params_comparison_{}.txt'.format(channel)))
         
     spikingPC = cortex.spiking_idcs((np.greater_equal, 0.33), ('PC', 0))
     spikingALL= cortex.spiking_idcs((np.greater_equal, 0.33), ('ALL', 0))
@@ -76,30 +77,31 @@ def task1(simulation_dir, seed=None):
     tlim=(transient, transient+15000)
     
     (C_lags, autoC_mean, autoC_std, crossC_mean,
-     crossC_std) = Tools.get_correlations(
+     crossC_std) = get_correlations(
          cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags,
-         file=simulation_dir+'\\Correlations.txt', display=True, 
+         file=os.path.join(simulation_dir, 'Correlations.txt'), display=True, 
          display_interval=5)
          
-    ISImean, ISICV = Tools.get_ISI_stats(
+    ISImean, ISICV = get_ISI_stats(
         cortex, neuron_idcs=spikingALL, tlim=tlim, 
-        savetxt=simulation_dir+'\\ISI_stats.txt')
+        file=os.path.join(simulation_dir, 'ISI_stats.txt'))
     Correlation_sigma = 1
     fig02(ISImean, ISICV, C_lags, crossC_mean,
           Correlation_sigma, simulation_dir)
     fig03(C_lags, autoC_mean, simulation_dir)
     
-    fq, pwr = Tools.get_LFP_SPD(cortex, log=True, sigma=2)
+    fq, pwr = get_LFP_SPD(cortex, log=True, sigma=2)
     fig04(fq, pwr, simulation_dir)
     
-    if not os.path.isdir(simulation_dir+'\\Reports'):
-        os.mkdir(simulation_dir+'\\Reports')
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports'))
     
-    VstdALL = Tools.get_V_stats(
+    VstdALL = get_V_stats(
         cortex, spikingALL, 
-        file=simulation_dir + '\\Reports\\VALLstats.txt')[1]
-    VstdPC =Tools.get_V_stats(
-        cortex, spikingPC, file=simulation_dir+'\\Reports\\VPCstats.txt')[1]
+        file=os.path.join(simulation_dir, 'Reports', 'VALLstats.txt'))[1]
+    VstdPC =get_V_stats(
+        cortex, spikingPC, 
+        file=os.path.join(simulation_dir, 'Reports', 'VPCstats.txt'))[1]
     fig05(VstdALL, VstdPC, simulation_dir)
 
 @time_report()
@@ -125,19 +127,19 @@ def task2(simulation_dir):
     
     tlim=(1000,16000)
     
-    if not os.path.isdir(simulation_dir+'\\Reports'):
-        os.mkdir(simulation_dir+'\\Reports')
-    ISImean, ISICV = Tools.get_ISI_stats_from_spike_trains(
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports'))
+    ISImean, ISICV = get_ISI_stats_from_spike_trains(
         spike_trains, tlim=tlim, 
-        savetxt=simulation_dir+'\\Reports\\original_ISI.txt')
+        file=os.path.join(simulation_dir, 'Reports', 'original_ISI.txt'))
     
     lags= np.arange(50)
     
     
     (C_lags, autoC_mean, autoC_std,crossC_mean, 
-     crossC_std) = Tools.get_correlations_from_spike_trains(
+     crossC_std) = get_correlations_from_spike_trains(
          spike_trains, tlim=tlim, delta_t=2, lags=lags, 
-         file=simulation_dir+'\\Reports\\Original_spikes.txt', 
+         file=os.path.join(simulation_dir, 'Reports', 'Original_spikes.txt'), 
          display=True, display_interval=5)  
     
     Correlation_sigma = 1
@@ -153,8 +155,7 @@ def task2(simulation_dir):
     
     Itot = Itot[unique_idc]
     frequency = 1000/0.05
-    fq, pwr = Tools.get_LFP_SPD_from_Itotarray(Itot, frequency, 
-                                               log=True, sigma=0)
+    fq, pwr = get_LFP_SPD_from_Itotarray(Itot, frequency, log=True, sigma=2)
     
     fig08(fq, pwr, simulation_dir)
 
@@ -191,24 +192,25 @@ def task3(simulation_dir, seed=None):
     
     lags = np.arange(50)
     tlim=(transient, transient+15000)
-    if not os.path.isdir(simulation_dir+'\\Reports'):
-        os.mkdir(simulation_dir+'\\Reports')
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports'))
         
     (C_lags, autoC_mean, autoC_std, crossC_mean, 
-     crossC_std) = Tools.get_correlations(
+     crossC_std) = get_correlations(
          cortex, idcs=spikingALL, tlim=tlim, delta_t=2, lags=lags, 
-         file=simulation_dir+'\\Reports\\Correlationsrk2.txt', display=True, 
+         file=os.path.join(simulation_dir, 'Reports', 'Correlationsrk2.txt'), 
+         display=True, 
          display_interval=5)
-    ISImean, ISICV = Tools.get_ISI_stats(
+    ISImean, ISICV = get_ISI_stats(
         cortex, neuron_idcs=spikingALL, tlim=tlim, 
-        savetxt=simulation_dir+'\\Reports\\ISIrk2_stats.txt')
+        file=os.path.join(simulation_dir, 'Reports', 'ISIrk2_stats.txt'))
     Correlation_sigma = 1
     
     fig10(ISImean, ISICV, C_lags, crossC_mean,
           Correlation_sigma, simulation_dir)
     fig11(C_lags, autoC_mean, simulation_dir)
     
-    fq, pwr = Tools.get_LFP_SPD(cortex, log=True, sigma=2)
+    fq, pwr = get_LFP_SPD(cortex, log=True, sigma=2)
     fig12(fq, pwr, simulation_dir)
     
     
@@ -232,10 +234,11 @@ def task4(simulation_dir, seed=None):
                           constant_stimuli=constant_stimuli, method=method, 
                           dt=dt, transient=transient, seed=seed)
      
-    cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL',0))
+    ALL = cortex.neuron_idcs(('ALL',0))
+    cortex.set_neuron_monitors('I_tot', 'I_tot', ALL)
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
     
-    pCon_reg = 0.1
+    pCon_reg = 0.2
     pulse0, rate0 = (1100, 1105), 50000
     pulse1, rate1 = (2100, 2105), 100000
     gmax_reg = 0.1
@@ -279,11 +282,11 @@ def task4(simulation_dir, seed=None):
             delta_t=delta_t), 
         axis=0)
     
-    if not os.path.isdir(simulation_dir+'\\Reports'):
-        os.mkdir(simulation_dir+'\\Reports')
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports'))
         
-    with open(simulation_dir+'\\Reports\\Regularpulses_spikingcounts.txt',
-              'w') as f:
+    with open(os.path.join(simulation_dir, 'Reports', 
+                           'Regularpulses_spikingcounts.txt'), 'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -329,8 +332,8 @@ def task4(simulation_dir, seed=None):
 @time_report()
 def task5(simulation_dir, seed=None):
     basics_scales = {
-        'membr_param_std': [(dict(par=membranetuple._fields, 
-                                  group=group_sets['ALL']), 0.8)]}
+        'membr_param_std': [(dict(group=group_sets['ALL'],
+                             par=list(membranetuple._fields)), 0.2)]}
 
     n_cells=1000
     n_stripes=1
@@ -348,7 +351,7 @@ def task5(simulation_dir, seed=None):
     
     
     duration=1200 
-    pCon_reg = 0.1
+    pCon_reg = 0.2
     pulse=(1100, 1105)
     rate=100000
     gmax_reg = 0.1
@@ -379,11 +382,12 @@ def task5(simulation_dir, seed=None):
             delta_t=delta_t),
         axis=0)
     
-    if not os.path.isdir(simulation_dir+'\\Reports'):
-        os.mkdir(simulation_dir+'\\Reports')
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports'))
         
-    with open(simulation_dir+'\\Reports\\Regularpulses_'
-              + 'reducedstd__spikingcounts.txt', 'w') as f:
+    with open(os.path.join(
+            simulation_dir, 'Reports',
+            'Regularpulses_reducedstd__spikingcounts.txt'), 'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -408,11 +412,15 @@ def task5(simulation_dir, seed=None):
               end='\n\n', file=f)
 
 @time_report()
-def task6(simulation_dir, seed=None):
+def task6(simulation_dir, seed_list=None):
 
+    # Ntrials = 2
+    # Membr_std_list = np.asarray([0,100])/100
     Ntrials = 5
     Membr_std_list = np.asarray([0,20,40,60,80,100])/100
     
+    if seed_list is None:
+        seed_list=[seed for seed in range(Ntrials)]
     
     PC_L23_results = [[] for i in range(len(Membr_std_list))]
     PC_L5_results = [[] for i in range(len(Membr_std_list))]
@@ -440,6 +448,7 @@ def task6(simulation_dir, seed=None):
 
     
     for trial in range(Ntrials):
+        seed = seed_list[trial]
         for std in range(len(Membr_std_list)):
             print_out1a = '||   REPORT: Trial ' + str(trial)
             print_out2a = '||   REPORT: std_scale ' + str(Membr_std_list[std])
@@ -457,7 +466,7 @@ def task6(simulation_dir, seed=None):
             print("="*len(print_out1))
             
             basics_scales = {'membr_param_std': [
-                (dict(par=membranetuple._fields,  group=group_sets['ALL']),
+                (dict(par=list(membranetuple._fields),  group=group_sets['ALL']),
                  Membr_std_list[std])]}
 
             cortex = Cortex.setup(n_cells=n_cells, n_stripes=n_stripes, 
@@ -471,7 +480,7 @@ def task6(simulation_dir, seed=None):
             PC_L23 = cortex.neuron_idcs(('PC_L23',0))
             PC_L5 = cortex.neuron_idcs(('PC_L5',0))
             
-            pCon_reg = 0.1
+            pCon_reg = 0.2
             pulse=(1100, 1105)
             rate=100000
             gmax_reg = 0.1
@@ -492,7 +501,28 @@ def task6(simulation_dir, seed=None):
                 np.sum(
                     cortex.spiking_count(neuron_idcs=PC_L5, 
                                          tlim=(pulse[0], pulse[0]+50))))
-
+    
+    if not os.path.isdir(os.path.join(simulation_dir, 'report')):
+        os.mkdir(os.path.join(simulation_dir, 'report'))
+        
+        with open(os.path.join(
+                simulation_dir, 'report', 'activity.txt'), 'w') as f:
+            print('N trials:', Ntrials, file=f)
+            print('Seed list:', seed_list, file=f)
+            print('Std list:', Membr_std_list, file=f)
+            print(file=f)
+            print('L2/3', file=f)
+            for std in range(len(Membr_std_list)):        
+                print('Std:', Membr_std_list[std], file=f)
+                print(PC_L23_results[std], file=f)
+                print(file=f)
+            print('-'*20, file=f)
+            print('L5', file=f)
+            for std in range(len(Membr_std_list)):        
+                print('Std:', Membr_std_list[std], file=f)
+                print(PC_L5_results[std], file=f)
+                print(file=f)
+           
     fig15(Membr_std_list, PC_L23_results, PC_L5_results, simulation_dir)
 
 @time_report()
@@ -514,11 +544,11 @@ def task7(simulation_dir, seed=None):
                           dt=dt, transient=transient, seed=seed)
      
     
-    pCon_reg = 0.1
+    pCon_reg = 0.05
     pulse0=(1100, 1200)
     pulse1=(2100, 2200)
-    rate=30
-    gmax_reg = 0.1
+    rate=10
+    gmax_reg = 2
     pfail_reg=0
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
     PC_L5 = cortex.neuron_idcs(('PC_L5',0))
@@ -534,12 +564,13 @@ def task7(simulation_dir, seed=None):
     cortex.run(duration)
     
     fig16(cortex, pulse0, pulse1, simulation_dir)
+    raster_plot(cortex)
 
 @time_report()
 def task8(simulation_dir, seed=None):
     
     basics_scales = {'gmax_mean': [(dict(target=group_sets['ALL'], 
-                                         source=group_sets['IN']), 0.4)]}
+                                         source=group_sets['IN']), 0.7)]}
     
     
     n_cells=1000
@@ -560,11 +591,12 @@ def task8(simulation_dir, seed=None):
                           dt=dt, basics_scales=basics_scales, 
                           transient=transient, seed=seed)
        
-    pCon_reg = 0.1
+   
+    pCon_reg = 0.05
     pulse0=(1100, 1200)
     pulse1=(2100, 2200)
-    rate=30
-    gmax_reg = 0.1
+    rate=10
+    gmax_reg = 2
     pfail_reg=0
     PC_L23 = cortex.neuron_idcs(('PC_L23',0))
     PC_L5 = cortex.neuron_idcs(('PC_L5',0))
@@ -579,6 +611,7 @@ def task8(simulation_dir, seed=None):
     cortex.run(duration)
     
     fig17(cortex, pulse0, pulse1, simulation_dir)
+    
 
 @time_report('Task set')
 def task_set(simulation_dir, seed=None):
@@ -609,12 +642,13 @@ if __name__=='__main__':
     simulation_dir = set_simulation_dir()
     seed = 0
 
-    task1(simulation_dir=simulation_dir, seed=seed)
+    # task1(simulation_dir=simulation_dir, seed=seed)
     # task2(simulation_dir)
-    # task3(simulation_dir=simulation_dir, seed=seed
+    # task3(simulation_dir=simulation_dir, seed=seed)
     # task4(simulation_dir=simulation_dir, seed=seed)
     # task5(simulation_dir=simulation_dir, seed=seed)
-    # task6(simulation_dir=simulation_dir, seed=seed)
+    task6(simulation_dir=simulation_dir)
     # task7(simulation_dir=simulation_dir, seed=seed)
     # task8(simulation_dir=simulation_dir, seed=seed)
     # task_set(simulation_dir=simulation_dir, seed=seed)
+    pass
