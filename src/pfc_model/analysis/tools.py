@@ -70,7 +70,8 @@ def raster_plot_simple(cortex, tlim=None, figsize=(18,10), s=3,
 
     
 def raster_plot(cortex, tlim=None, figsize=(18,10), s=5, layerpadding=15,
-                fontsize=24, labelsize=20, lw=3, savefig=None, show=True):
+                fontsize=24, labelsize=20, lw=3, savefig=None, show=True,
+                newfigure=True):
     """Get a customized raster plot from a PFC model after simulation.
     The model must contain only 1 stripe. Dots representing PC are blue 
     and dots representing IN are red. Neurons in layer L2/3 and L5 are 
@@ -129,7 +130,8 @@ def raster_plot(cortex, tlim=None, figsize=(18,10), s=5, layerpadding=15,
     IN_L5_i = sp_i[IN_L5_isin]
     IN_L5_t = sp_t[IN_L5_isin]
       
-    plt.figure(figsize=figsize)
+    if newfigure:
+        plt.figure(figsize=figsize)
     plt.scatter(PC_L23_t, PC_L23_i, s=s, color='blue')
     plt.scatter(IN_L23_t, IN_L23_i, s=s, color='red')
     plt.scatter(PC_L5_t, PC_L5_i+layerpadding, s=s, color='blue')
@@ -627,7 +629,7 @@ def show_correlations(cortex, lags, savefig=None, savedata=None):
         crossfig[-2] = crossfig[-2] + '_cross'
         crossfig='.'.join(crossfig)
          
-    auto_mean, auto_std, cross_mean, cross_std = get_correlations(cortex, lags)
+    lags, auto_mean, auto_std, cross_mean, cross_std = get_correlations(cortex, lags)
 
     lag_ms = lags*5
     
@@ -911,7 +913,7 @@ def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None,
     return ISIstats(spike_trains, file)
 
 
-def ISIstats(spike_trains, file):
+def ISIstats(spike_trains, file=None):
     """Get statistical measures of ISIs.
     
     A summary of results can be saved to a specified file.

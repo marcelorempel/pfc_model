@@ -25,7 +25,7 @@ from importlib.metadata import version
 __version__ = version(__name__)
 
 from .cortex_setup import *
-from ._auxiliary import set_working_dir, set_simulation_dir
+from ._auxiliary import *
 from ._basics_setup import group_sets, membranetuple
 import numpy as np
 from matplotlib import pyplot as plt

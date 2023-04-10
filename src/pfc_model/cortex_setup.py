@@ -200,6 +200,7 @@ class Cortex(BaseClass):
         self.fluctuant_stimuli = fluctuant_stimuli
         
         self.transient = transient
+        self.simulated_time = 0
         self.seed = seed
         self.cortex_neuron_scales = cortex_neuron_scales
         self.cortex_syn_scales = cortex_syn_scales
@@ -367,6 +368,7 @@ class Cortex(BaseClass):
             print('.'*len(print_out1), end='\n\n')
             self.net.run(current_schedule_intervals[i]*br2.ms, report='text',
                          report_period=10*br2.second)
+            self.simulated_time += current_schedule_intervals[i]
             
             t1 = current_schedule_times[i+1]
             if t1 >= self.transient:
@@ -386,6 +388,7 @@ class Cortex(BaseClass):
                     monitor.active=False
         print()
         self._restore_longrun(erase_longrun)
+        
         
     def set_poisson_stimuli(self, stimulator_name, n_source, channels, 
                             target_idc, pcon, rate, start, stop, gmax, pfail):
@@ -913,7 +916,7 @@ class Cortex(BaseClass):
         
         if delta_t is None:
             if tlim is None:
-                return count/(self.neurons.t/br2.second - self.transient/1000)
+                return count/(self.simulated_time/1000 - self.transient/1000)
             else:
                 t0,t1 = tlim
                 return count/((t1-t0)/1000)
@@ -1362,8 +1365,8 @@ if __name__ == '__main__':
     
       
     constant_stimuli = [
-                        [('PC', 0), 250],
-                        [('IN', 0), 200]
+                        [('PC', 0), 600],
+                        [('IN', 0), 0]
                         ]
     
     # cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
@@ -1379,11 +1382,11 @@ if __name__ == '__main__':
     cortex = Cortex.load('tutorial-1_3',
     constant_stimuli, 'rk4', 0.05, transient=1000)
     
-    neuron_idc = cortex.neuron_idcs(('ALL', 0))
-    cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
-    syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
-    cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
-    cortex.run(21000)
+    # neuron_idc = cortex.neuron_idcs(('ALL', 0))
+    # cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
+    # syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
+    # cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
+    cortex.run(11000)
     
     
     pass
