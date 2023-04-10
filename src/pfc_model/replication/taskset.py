@@ -2,7 +2,7 @@ import numpy as np
 from pfc_model.replication import *
 from .._auxiliary import set_simulation_dir
 
-simulation_dir = set_simulation_dir
+simulation_dir = set_simulation_dir()
 seed = 0
 
 Iexc_arr = np.arange(0, 600, 100)
