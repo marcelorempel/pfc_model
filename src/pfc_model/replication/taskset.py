@@ -1,17 +1,25 @@
 import numpy as np
 from pfc_model.replication import *
-from .._auxiliary import set_simulation_dir
+from .._auxiliary import *
 
-simulation_dir = set_simulation_dir()
-seed = 0
+@time_report()
+def tasks(simulation_dir, seed, Iexc_arr, Iinh_arr, duration):
+    task1(simulation_dir=simulation_dir, seed=seed)
+    task2(simulation_dir=simulation_dir, seed=seed)
+    task3(simulation_dir=simulation_dir, seed=seed)
+    task4(simulation_dir=simulation_dir)
+    task5(simulation_dir=simulation_dir, seed=seed)
+    task6(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
+        Iinh_arr=Iinh_arr, seed=seed, duration=duration)
 
-Iexc_arr = np.arange(0, 600, 100)
-Iinh_arr = np.arange(0, 600, 100)
+if __name__ == '__main__':
+    simulation_dir = set_simulation_dir()
+    seed = 0
 
-task1(simulation_dir=simulation_dir, seed=seed)
-task2(simulation_dir=simulation_dir, seed=seed)
-task3(simulation_dir=simulation_dir, seed=seed)
-task4(simulation_dir=simulation_dir)
-task5(simulation_dir=simulation_dir, seed=seed)
-task6(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
-      Iinh_arr=Iinh_arr, seed=seed, duration=13000)
+    Iexc_arr = np.arange(0, 600, 100)
+    Iinh_arr = np.arange(0, 600, 100)
+    duration=13000
+
+    tasks(simulation_dir=simulation_dir, seed=seed, Iexc_arr=Iexc_arr,
+        Iinh_arr=Iinh_arr, duration=duration)
+	
