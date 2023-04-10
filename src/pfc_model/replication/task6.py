@@ -1,5 +1,7 @@
 import os
+import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.transforms as mtransforms
 from .._basics_setup import *
 from pfc_model import *
 from pfc_model.analysis import*
