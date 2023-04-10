@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from pathlib import Path
 import seaborn as sns
 from pfc_model import *
 from pfc_model.analysis import*
@@ -9,6 +10,8 @@ __all__ = ['task1']
 @time_report()
 def task1(simulation_dir, seed=None):
     
+    scr_path = Path(__file__).parent
+
     # run rk4
     n_cells=1000
     n_stripes=1
@@ -62,7 +65,7 @@ def task1(simulation_dir, seed=None):
     
     
     # original
-    with open('Original_spiketime.txt', 'r') as f:
+    with open(os.path.join(scr_path, 'Original_spiketime.txt'), 'r') as f:
         text = f.read()
     
     spike_trains_rk2 = [np.asarray(train.split(',')).astype(float) 
@@ -199,8 +202,8 @@ def task1(simulation_dir, seed=None):
     
     fq_rk2, pwr_rk2 = get_LFP_SPD(cortex_rk2, log=True, sigma=2)
     
-    time_orig = np.load('Original_t.npy')
-    Itot_orig = np.load('Original_I.npy')
+    time_orig = np.load(os.path.join(scr_path, 'Original_t.npy'))
+    Itot_orig = np.load(os.path.join(scr_path, 'Original_I.npy'))
     
     time_bins_orig = np.floor(time_orig*20).astype(int)
     time_bins_orig, unique_idc_orig = np.unique(time_bins_orig, return_index=True)
