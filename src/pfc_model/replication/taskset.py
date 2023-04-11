@@ -3,13 +3,14 @@ from pfc_model.replication import *
 from .._auxiliary import *
 
 @time_report()
-def tasks(simulation_dir, seed, Iexc_arr, Iinh_arr, duration):
-    task1(simulation_dir=simulation_dir, seed=seed)
+def tasks(simulation_dir, seed, Ntrials, Iexc_arr, Iinh_arr, duration):
+    task1(simulation_dir=simulation_dir, Ntrials=Ntrials)
     task2(simulation_dir=simulation_dir, seed=seed)
     task3(simulation_dir=simulation_dir, seed=seed)
-    task4(simulation_dir=simulation_dir)
-    task5(simulation_dir=simulation_dir, seed=seed)
-    task6(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
+    task4(simulation_dir=simulation_dir, seed=seed)
+    task5(simulation_dir=simulation_dir)
+    task6(simulation_dir=simulation_dir, seed=seed)
+    task7(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
         Iinh_arr=Iinh_arr, seed=seed, duration=duration)
 
 if __name__ == '__main__':
@@ -19,7 +20,8 @@ if __name__ == '__main__':
     Iexc_arr = np.arange(0, 600, 100)
     Iinh_arr = np.arange(0, 600, 100)
     duration=13000
+    Ntrials=30
 
-    tasks(simulation_dir=simulation_dir, seed=seed, Iexc_arr=Iexc_arr,
-        Iinh_arr=Iinh_arr, duration=duration)
+    tasks(simulation_dir=simulation_dir, seed=seed, Ntrials=Ntrials,
+          Iexc_arr=Iexc_arr, Iinh_arr=Iinh_arr, duration=duration)
 	

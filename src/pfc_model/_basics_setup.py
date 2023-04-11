@@ -1104,19 +1104,19 @@ _neuron_eq_memb_I = (
 
 # Membrane state variables
 _neuron_eq_membr_state = (
-    'I_exp = g_L * delta_T * exp((V - V_T)/delta_T): amp\n'
-    'w_V = I_tot + I_exp -g_L * (V - E_L): amp\n'
+    'I_exp = g_L * delta_T * exp((clip(V, -500*mV, V_up) - V_T)/delta_T): amp\n'
+    'w_V = I_tot + I_exp -g_L * (clip(V, -500*mV, V_up) - E_L): amp\n'
     
-    'dV = int(I_tot >= I_ref) * int(t-last_spike < 5*ms) * (-g_L/C) * (V-V_r)'
+    'dV = int(I_tot >= I_ref) * int(t-last_spike < 5*ms) * (-g_L/C) * (clip(V, -500*mV, V_up)-V_r)'
     '+ (1 - int(I_tot >= I_ref) * int(t-last_spike < 5*ms))'
-    '* (I_tot + I_exp - g_L * (V-E_L) - w)/C: volt/second\n'   
+    '* (I_tot + I_exp - g_L * (clip(V, -500*mV, V_up)-E_L) - w)/C: volt/second\n'   
     'dV/dt = dV: volt\n'
     
     'D0 = (C/g_L) * w_V:  coulomb\n'
-    'dD0 = C *(exp((V - V_T)/delta_T)-1): farad\n'
+    'dD0 = C *(exp((clip(V, -500*mV, V_up) - V_T)/delta_T)-1): farad\n'
     'dw/dt = int(w > w_V-D0/tau_w) * int(w < w_V+D0/tau_w) * int(V <= V_T)'
     '* int(I_tot < I_ref) *'
-    ' -(g_L * (1 - exp((V-V_T)/delta_T)) + dD0/tau_w)*dV: amp'
+    ' -(g_L * (1 - exp((clip(V, -500*mV, V_up)-V_T)/delta_T)) + dD0/tau_w)*dV: amp'
     )
 
 _neuron_eq_model = '\n\n'.join(
