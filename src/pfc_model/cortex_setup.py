@@ -1291,8 +1291,8 @@ class Cortex(BaseClass):
                 stim['stop'] = self.fluctuant_stimuli[i][4]
                 
             
-        for stimulus in cortex.external_stimuli_info:
-            info = cortex.external_stimuli_info[stimulus]
+        for stimulus in self.external_stimuli_info:
+            info = self.external_stimuli_info[stimulus]
             toml_dict['external_stimuli'][stimulus] = {}
             stim = toml_dict['external_stimuli'][stimulus]
             stim['stimulator_type'] = info['stimulator_type']
@@ -1308,8 +1308,8 @@ class Cortex(BaseClass):
             stim['pfail'] = info['pfail']
             
     
-        for mon in cortex.monitors_info:
-            info = cortex.monitors_info[mon]
+        for mon in self.monitors_info:
+            info = self.monitors_info[mon]
             toml_dict['monitors'][mon] = {}
             toml_dict['monitors'][mon]['type'] = info['type']
             toml_dict['monitors'][mon]['variables'] = info['variables']
