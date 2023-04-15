@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.signal import hilbert, butter, lfilter
-# from .tools import get_LFP_SPD
-from tools import get_LFP_SPD
+from .tools import get_LFP_SPD
 
 __all__ = ['SE_signal', 'PLV_signal_filtered', 'chi2_synchrony']
 

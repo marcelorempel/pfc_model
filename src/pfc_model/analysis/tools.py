@@ -10,8 +10,7 @@ from scipy.stats import chi2_contingency as chi2
 from collections import namedtuple
 from scipy.ndimage import gaussian_filter1d as gf1d
 from scipy.signal import periodogram
-# from .._auxiliary import time_report
-from _auxiliary import time_report
+from .._auxiliary import time_report
 
 __all__= [
     'raster_plot_simple', 'raster_plot', 'get_V_stats', 'get_correlations', 
