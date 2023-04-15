@@ -3,7 +3,6 @@ import os
 from matplotlib import pyplot as plt
 from pfc_model import *
 from pfc_model.analysis import*
-
   
 __all__ = ['task3']
 
@@ -149,3 +148,8 @@ def _fig06(cortex, pulse0, pulse1, path):
     plt.text(p1_t0-38, 900, '(b)', fontsize=26)
     plt.savefig(os.path.join(path,'Figures','Fig06b.png'))
     
+
+if __name__ == '__main__':
+    seed = 0
+    simulation_dir = set_simulation_dir()
+    task3(simulation_dir, seed)

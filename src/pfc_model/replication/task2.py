@@ -88,15 +88,17 @@ def task2(simulation_dir, seed=None):
                      [('PC',0), ('IN_L_both',0), ('IN_CL_both',0), 
                       ('IN_CC',0), ('IN_F',0)], 
                      alias_list = aliases, 
-                     file=os.path.join(simulation_dir, 'Param_comparisons',
+                     file=os.path.join(simulation_dir, 'Reports', 
+                                       'Param_comparisons',
                                        'membr_params.txt'))
     
     get_spiking(cortex_rk4, 0.33, ('PC', 0), 
-                file=os.path.join(simulation_dir, 'spiking.txt'))
+                file=os.path.join(simulation_dir, 'Reports', 
+                                  'Param_comparisons', 'spiking.txt'))
     
     comp_membrparam_rategroup(
         cortex_rk4, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
-        file=os.path.join(simulation_dir, 'Param_comparisons',
+        file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
                           'membr_params_comparison.txt'))
     
     for channel in cortex_rk4.network.basics.syn.channels.names:
@@ -498,3 +500,8 @@ def _SPDfigures(frequency_list, power_list):
     ax.text(5.5, 11, '$1/f^2$', fontsize=26)
     ax.text(5.5, 1, '$1/f^3$', fontsize=26)
     plt.legend(fontsize=20, labels=['rk4', 'gsl_rk2', 'original'])
+
+if __name__ == '__main__':
+    simulation_dir = set_simulation_dir()
+    seed=0
+    task2(simulation_dir=simulation_dir, seed=seed)

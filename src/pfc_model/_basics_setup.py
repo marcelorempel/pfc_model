@@ -1295,6 +1295,8 @@ def basics_setup(n_cells_prompted, n_stripes, basics_scales=None,
     if basics_scales is not None:  
         for par in basics_scales:              
             for TS_dict, scale in basics_scales[par]:
+                
+                
                 new_param = scalables[par].loc[TS_dict].values * scale
                 scalables[par].loc[TS_dict] = new_param
     
@@ -1508,16 +1510,4 @@ class _BasicsSetup(BaseClass):
     scalables: any
     scales: any
 
-    
-if __name__ == '__main__':
-   
-    n1=1000
-    n_stripes=1
-
-    membr_param_std = [(dict(group=group_sets['ALL'], 
-                              par=_membpar_names), 0.9)]
-    basics_scales = {'membr_param_std': membr_param_std}
-
-    _basics = basics_setup(n1, n_stripes,
-                            basics_scales=basics_scales, 
-                           disp=False)
+  

@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 import os
 from pfc_model import *
 from pfc_model.analysis import*

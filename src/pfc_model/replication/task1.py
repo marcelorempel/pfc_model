@@ -2,8 +2,10 @@ import numpy as np
 import os
 from pfc_model import *
 
+
 __all__ = ['task1']
 
+@time_report()
 def task1(simulation_dir, Ntrials=30, seed_list=None):
     
     if seed_list is None:

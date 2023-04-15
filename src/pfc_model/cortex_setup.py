@@ -12,8 +12,10 @@ import brian2 as br2
 import numpy as np
 from numpy.matlib import repmat
 from dataclasses import dataclass
+from importlib import import_module
 import os
 import shutil
+import toml
 from ._network_setup import *
 from ._auxiliary import *
 from ._basics_setup import membranetuple
@@ -126,15 +128,23 @@ class Cortex(BaseClass):
         network = network_setup(n_cells, n_stripes, basics_scales, seed,
                                 alternative_pcells, basics_disp)
         
-        return __class__(network, constant_stimuli, method, dt, transient, 
+        cortex = __class__(network, constant_stimuli, method, dt, transient, 
                          fluctuant_stimuli, seed, cortex_neuron_scales, 
                          cortex_syn_scales)
+        
+        cortex.basics_scales = basics_scales
+        cortex.alternative_pcells = alternative_pcells
+        cortex.basics_disp = basics_disp
+        cortex.cortex_neuron_scales = cortex_neuron_scales
+        cortex.cortex_syn_scales = cortex_syn_scales
+        
+        return cortex
     
     @staticmethod
     @time_report('Cortex setup (with network loading)')
     def load(path, constant_stimuli, method, dt, transient=0, 
              fluctuant_stimuli=None, cortex_neuron_scales=None,
-             cortex_syn_scales=None, alternative_basics_setup=None):
+             cortex_syn_scales=None):
         """Set a model instance from previously saved data.
         
         Parameters
@@ -173,9 +183,170 @@ class Cortex(BaseClass):
       
         network = Network.load(path)
         seed = network.seed
-        return __class__(network, constant_stimuli, method, dt, transient, 
+        
+        cortex = __class__(network, constant_stimuli, method, dt, transient, 
                          fluctuant_stimuli, seed, cortex_neuron_scales, 
                          cortex_syn_scales)
+        
+        if not os.path.isabs(path):
+            cortex._loadfile = os.path.join(os.getcwd(), path)
+        else:
+            cortex._loadfile = path
+        
+
+        cortex.cortex_neuron_scales = cortex_neuron_scales
+        cortex.cortex_syn_scales = cortex_syn_scales
+        
+        return cortex
+    
+    @staticmethod
+    @time_report()
+    def repeat_experiment(path, file_name):
+        
+        if '.toml' not in file_name:
+            file_name = file_name + '.toml'
+        toml_dict = toml.load(os.path.join(path, file_name))
+        
+        dt = toml_dict['setup']['dt']
+        method = toml_dict['setup']['method']
+        n_stripes = toml_dict['setup']['n_stripes']
+        n_cells = toml_dict['setup']['n_cells']
+        transient = float(toml_dict['simulation']['transient'])
+        simulated_time = float(toml_dict['simulation']['simulated_time'])
+        basics_disp = toml_dict['setup']['basics_disp']
+        seed = (toml_dict['setup']['seed'] if 'seed' in toml_dict['setup'] 
+                else None)
+        alternative_pcells = (toml_dict['setup']['alternative_pcells'] 
+                              if 'alternative_pcells' in toml_dict['setup']
+                              else None)
+        basics_scales = None
+        if 'basics' in  toml_dict['scales']:
+            basics_scales = {}
+            for scl in toml_dict['scales']['basics']:
+                basics_scales[scl] = []
+                for i in toml_dict['scales']['basics'][scl]:
+                    scl_dict = toml_dict['scales']['basics'][scl][i]
+                    basics_scales[scl].append(
+                        (scl_dict['info'], scl_dict['scale']))
+                
+        cortex_neuron_scales=None
+        if 'neuron' in toml_dict['scales']:
+            cortex_neuron_scales = {}
+            for scl in toml_dict['scales']['neuron']:
+                cortex_neuron_scales[scl] = []
+                for i in toml_dict['scales']['neuron'][scl]:
+                    scl_dict = toml_dict['scales']['neuron'][scl][i]
+                    cortex_neuron_scales[scl].append(
+                        [(scl_dict['group'], scl_dict['stripe']), 
+                         scl_dict['factor']])
+        
+        cortex_syn_scales=None
+        if 'syn' in toml_dict['scales']:
+            cortex_syn_scales = {}
+            for scl in toml_dict['scales']['syn']:
+                cortex_syn_scales[scl] = []
+                for i in toml_dict['scales']['syn'][scl]:
+                    scl_dict = toml_dict['scales']['syn'][scl][i]
+                    cortex_syn_scales[scl].append(
+                        [(scl_dict['tgt_group'], scl_dict['tgt_stripe']),
+                         (scl_dict['src_group'], scl_dict['src_stripe']),
+                         scl_dict['channels'], scl_dict['factor']])
+        
+        constant_stimuli = []
+        for stim in list(toml_dict['constant_stimuli'].values()):
+            constant_stimuli.append([(stim['group'], stim['stripe']), 
+                                     stim['current']])
+            
+        
+        fluctuant_stimuli = ([] if len(toml_dict['fluctuant_stimuli']) > 0 
+                             else None)
+        fluct_copy = []
+        for stim in list(toml_dict['fluctuant_stimuli'].values()):
+            group = stim['group']
+            stripe = stim['stripe']
+            start = stim['start']
+            stop = stim['stop']
+            script = stim['script']
+            func = stim['function']
+            mod_path, mod_file = os.path.split(script)
+            if not os.path.samefile(mod_path, os.getcwd()):
+                shutil.copyfile(script, os.path.join(os.getcwd(), mod_file))
+                fluct_copy.append(os.path.join(os.getcwd(), mod_file))
+
+            mod = mod_file[:-3]         
+            fluctuant_stimuli.append([(group, stripe), mod, func, start, stop])
+        
+        if 'save_file' in toml_dict['setup']:
+            file = toml_dict['setup']['save_file']
+            cortex = Cortex.load(file, constant_stimuli, method, dt, transient,
+                                 fluctuant_stimuli, cortex_neuron_scales,
+                                 cortex_syn_scales)
+        elif 'load_file' in toml_dict['setup']:
+            file = toml_dict['setup']['load_file']
+            cortex = Cortex.load(file, constant_stimuli, method, dt, transient,
+                                 fluctuant_stimuli, cortex_neuron_scales,
+                                 cortex_syn_scales)
+        else:
+            cortex = Cortex.setup(n_cells, n_stripes, constant_stimuli,
+                                  method, dt, transient, basics_scale,
+                                  fluctuant_stimuli, seed, alternative_pcells,
+                                  basics_disp, cortex_neuron_scales,
+                                  cortex_syn_scales)
+        alternative_pcells
+        for monitor in toml_dict['monitors']:
+            mon = toml_dict['monitors'][monitor]
+            type_ = mon['type']
+            variables =mon['variables']
+            idcs = mon['idcs']
+            start = mon['start'] if 'start' in mon else None 
+            stop = mon['stop'] if 'stop' in mon else None 
+            interval = mon['interval'] if 'interval' in mon else None
+            population_agroupate = (mon['population_agroupate'] 
+                                    if 'population_agroupate' in mon else None)
+                
+            if type_ == 'neuron':
+                print()
+                cortex.set_neuron_monitors(monitor, variables, idcs, start, stop)
+            elif type_ == 'synapse':
+                cortex.set_synapse_monitors(monitor, variables, idcs, start, stop)
+            elif type_ == 'neuron_longrun':
+                cortex.set_longrun_neuron_monitors(monitor, variables, idcs,
+                                                 interval, start, stop, 
+                                                 population_agroupate)
+            elif type_ == 'synapse_longrun':
+                cortex.set_longrun_synapse_monitors(monitor, variables, idcs,
+                                                 interval, start, stop, 
+                                                 population_agroupate)
+                
+        for stimulus in toml_dict['external_stimuli']:
+            stim = toml_dict['external_stimuli'][stimulus]
+            type_ = stim['stimulator_type']
+            n_source = stim['n_source']
+            channels = stim['channels']
+            target_idc = stim['target_idc']
+            pcon = stim['pcon']
+            rate = stim['rate']
+            start = stim['start']
+            stop = stim['stop']
+            gmax = stim['gmax']
+            pfail = stim['pfail']
+           
+            if type_ == 'poisson':
+                cortex.set_poisson_stimuli(stimulus, n_source, channels, 
+                                           target_idc, pcon, rate, start, stop, 
+                                           gmax, pfail)
+            elif type_ == 'regular':
+                cortex.set_regular_stimuli(stimulus, n_source, channels, 
+                                           target_idc, pcon, rate, start, stop, 
+                                           gmax, pfail)
+        
+        if simulated_time > 0:
+            cortex.run(simulated_time)
+            
+        for cp in fluct_copy:
+            os.remove(cp)
+        
+        return cortex
     
 
     def __init__(self, network, constant_stimuli, method, dt, transient=0, 
@@ -204,6 +375,8 @@ class Cortex(BaseClass):
         self.seed = seed
         self.cortex_neuron_scales = cortex_neuron_scales
         self.cortex_syn_scales = cortex_syn_scales
+        self._loadfile = None
+        self._savefile = None
         
         self.net = br2.Network()      
         self._set_fluctuant_stimuli()
@@ -261,6 +434,17 @@ class Cortex(BaseClass):
         
         self._monitor_schedule={}
         self._longrun_monitor_control=[]
+        
+        self.external_stimuli_info = {}
+        self.monitors_info = {}
+        
+        self.basics_scales = None
+        self.alternative_pcells = None
+        self.basics_disp = True
+        self.cortex_neuron_scales = None
+        self.cortex_syn_scales = None
+        
+        
     
     def save(self, path):
         """Save cortex data (structure, connectivity and parameters).
@@ -270,7 +454,12 @@ class Cortex(BaseClass):
         path: str
             Path where data will be saved.
         """
+        
         self.network.save(path)
+        if not os.path.isabs(path):
+            self._savefile = os.path.join(os.getcwd(), path)
+        else:
+            self._savefile = path
     
     @time_report('Cortex simulation')
     def run(self, t, erase_longrun=True):
@@ -450,6 +639,19 @@ class Cortex(BaseClass):
         pairs_connected[1,:] = source_idc[local_source_idc]
         pairs_connected=pairs_connected.astype(int)
         
+        self.external_stimuli_info[stimulator_name] = {
+            'stimulator_type': 'poisson',
+            'n_source': n_source,
+            'channels': channels,
+            'target_idc': target_idc,
+            'pcon': pcon,
+            'rate': rate,
+            'start': start,
+            'stop': stop,
+            'gmax': gmax,
+            'pfail': pfail}
+        
+        
         self._set_custom_stimuli(stimulator_name, n_source, channels, spike_idcs,
                                 spike_times, pairs_connected, gmax, pfail)
     
@@ -507,6 +709,20 @@ class Cortex(BaseClass):
         pairs_connected[0,:] = target_idc[local_target_idc]
         pairs_connected[1,:] = source_idc[local_source_idc]
         pairs_connected=pairs_connected.astype(int)
+        
+        self.external_stimuli_info[stimulator_name] = {
+            'stimulator_type': 'poisson',
+            'n_source': n_source,
+            'channels': channels,
+            'target_idc': target_idc,
+            'pcon': pcon,
+            'rate': rate,
+            'start': start,
+            'stop': stop,
+            'gmax': gmax,
+            'pfail': pfail}
+        
+        
 
         self._set_custom_stimuli(stimulator_name, n_source, channels, 
                                  spike_idcs, spike_times, pairs_connected,
@@ -543,6 +759,15 @@ class Cortex(BaseClass):
         self.neuron_monitors[name] =  br2.StateMonitor(
             self.neurons, variables, neuron_idcs, dt=self.dt)
         self._set_monitors(self.neuron_monitors[name], variables, start, stop)
+        self.monitors_info[name] = {
+            'type': 'neuron',
+            'variables': variables,
+            'idcs': neuron_idcs,
+            'interval': None,
+            'start': start,
+            'stop': stop,
+            'population_agroupate': None}
+        
         
     def set_synapse_monitors(self, name, variables, syn_idcs, 
                              start=None, stop=None):
@@ -573,7 +798,14 @@ class Cortex(BaseClass):
         self.synapse_monitors[name] =  br2.StateMonitor(
             self.synapses, variables, syn_idcs, dt=self.dt)
         self._set_monitors(self.synapse_monitors[name], variables, start, stop)      
-    
+        self.monitors_info[name] = {
+            'type': 'synapse',
+            'variables': variables,
+            'idcs': syn_idcs,
+            'interval': None,
+            'start': start,
+            'stop': stop,
+            'population_agroupate': None}
 
     def set_longrun_neuron_monitors(self, name, variables, neuron_idcs,
                                     interval, start=None, stop=None, 
@@ -619,7 +851,15 @@ class Cortex(BaseClass):
         self._set_longrun_monitors(
             self.neuron_monitors[name], self.longrun_neuron_monitors[name],
             variables, interval, start, stop, population_agroupate)
-        
+        self.monitors_info[name] = {
+            'type': 'neuron_longrun',
+            'variables': variables,
+            'idcs': neuron_idcs,
+            'interval': interval,
+            'start': start,
+            'stop': stop,
+            'population_agroupate': population_agroupate}
+       
     def set_longrun_synapse_monitors(
             self, name, variables, syn_idcs, 
             interval, start=None, stop=None,
@@ -667,6 +907,14 @@ class Cortex(BaseClass):
         self._set_longrun_monitors(
             self.synapse_monitors[name], self.longrun_synapse_monitors[name], 
             variables, interval, start, stop, population_agroupate)
+        self.monitors_info[name] = {
+            'type': 'synapse_longrun',
+            'variables': variables,
+            'idcs': syn_idcs,
+            'interval': interval,
+            'start': start,
+            'stop': stop,
+            'population_agroupate': population_agroupate}
         
     def get_memb_params(self, idc):
         """Retrieve membrane parameters as membranetuple.
@@ -939,6 +1187,146 @@ class Cortex(BaseClass):
         """
         return self.network.rheobase(neuron_idcs)
     
+    def save_experiment(self, path, file_name):
+        toml_dict = {'setup': {}, 'scales': {}, 'constant_stimuli': {}, 
+                     'fluctuant_stimuli': {}, 'external_stimuli': {}, 
+                     'monitors': {}, 'simulation':{}}
+        
+        if '.toml' not in file_name:
+            file_name = file_name+'.toml'
+        
+        if os.path.isabs(path):
+            abs_path = path
+        else:
+            abs_path = os.path.join(os.getcwd(), path)
+        
+        toml_dict['setup']['load_file'] = self._loadfile
+        toml_dict['setup']['save_file'] = self._savefile
+        toml_dict['setup']['method'] = self.method
+        toml_dict['setup']['dt'] = self.dt/br2.ms
+        toml_dict['setup']['seed'] = self.seed
+        toml_dict['setup']['n_stripes'] = self.network.basics.struct.stripes.n
+        toml_dict['setup']['n_cells'] = self.network.basics.struct.n_cells
+        
+        default_pcells = np.asarray(([47. ,  1.55,  1.55,  1.3 ,  1.3 ,  2.6 , 
+                                      2.1 , 38. , 0.25, 0.25, 0.25, 0.25, 1.8 , 
+                                      1.8 ]))
+        
+        # actual_pcells = self.network.basics.struct.p_cells_per_group
+        # if np.max(np.abs(actual_pcells - default_pcells)) > 0:
+        #     toml_dict['extra_setup']['alternative_pcells'] = actual_pcells
+        
+        toml_dict['setup']['basics_disp'] = self.basics_disp
+        toml_dict['setup']['alternative_pcells'] = (
+            self.alternative_pcells)
+        
+        if self.basics_scales is not None:
+            toml_dict['scales']['basics'] = {}
+            for par in self.basics_scales:
+                toml_dict['scales']['basics'][par] = {}
+                for i in range(len(self.basics_scales[par])):
+                    info_dict, scale = self.basics_scales[par][i]
+                    toml_dict['scales']['basics'][par][str(i)] = {}
+                    scl = toml_dict['scales']['basics'][par][str(i)]
+                    scl['info'] = info_dict
+                    scl['scale'] = scale
+        
+        
+        if self.cortex_neuron_scales is not None:
+            toml_dict['scales']['neuron'] = {}
+            for par in self.cortex_neuron_scales:
+                toml_dict['scales']['neuron'][par] = {}
+                for i in range(len(self.cortex_neuron_scales[par])):
+                    gr_stripe, factor = self.cortex_neuron_scales[par][i]
+                    toml_dict['scales']['neuron'][par][str(i)] = {}
+                    scl = toml_dict['scales']['neuron'][par][str(i)]
+                    scl['group'] = gr_stripe[0]
+                    scl['stripe'] = gr_stripe[1]
+                    scl['factor'] = factor
+                
+        if self.cortex_syn_scales is not None:
+            toml_dict['scales']['syn'] = {}
+            for par in self.cortex_syn_scales:
+                toml_dict['scales']['syn'][par] = {}
+                for i in range(len(self.cortex_syn_scales[par])):
+                    tgt_groups, src_groups, channels, factor = (
+                        self.cortex_syn_scales[par][i])
+                    
+                    toml_dict['scales']['syn'][par][str(i)] = {}
+                    scl = toml_dict['scales']['syn'][par][str(i)]
+                    
+                    scl['tgt_group'] = tgt_groups[0]
+                    scl['tgt_stripe'] = tgt_groups[1]
+                    scl['src_group'] = src_groups[0]
+                    scl['src_stripe'] = src_groups[1]
+                    scl['channels'] = channels
+                    scl['factor'] = factor
+                
+
+        for i in range(len(self.constant_stimuli)):
+            toml_dict['constant_stimuli'][str(i)] = {}
+            toml_dict['constant_stimuli'][str(i)]['group'] = self.constant_stimuli[i][0][0]
+            toml_dict['constant_stimuli'][str(i)]['stripe'] = self.constant_stimuli[i][0][1]
+            toml_dict['constant_stimuli'][str(i)]['current'] = self.constant_stimuli[i][1]
+            
+        
+        toml_dict['simulation']['transient'] = self.transient
+        toml_dict['simulation']['simulated_time'] = self.simulated_time
+        
+        if self.fluctuant_stimuli is not None:
+            for i in range(len(self.fluctuant_stimuli)):
+                mod_src = os.path.join(*self.fluctuant_stimuli[i][1].split('.'))+'.py'
+                mod_name = os.path.split(mod_src)[-1]
+                print(abs_path)
+                shutil.copyfile(mod_src, os.path.join(abs_path, mod_name))
+                
+                
+                toml_dict['fluctuant_stimuli'][str(i)] = {}
+                stim = toml_dict['fluctuant_stimuli'][str(i)] 
+                stim['group'] = self.fluctuant_stimuli[i][0][0]
+                stim['stripe'] = self.fluctuant_stimuli[i][0][1]
+                stim['script'] = os.path.join(abs_path, mod_name)
+                stim['function'] = self.fluctuant_stimuli[i][2]
+                stim['start'] = self.fluctuant_stimuli[i][3]
+                stim['stop'] = self.fluctuant_stimuli[i][4]
+                
+            
+        for stimulus in cortex.external_stimuli_info:
+            info = cortex.external_stimuli_info[stimulus]
+            toml_dict['external_stimuli'][stimulus] = {}
+            stim = toml_dict['external_stimuli'][stimulus]
+            stim['stimulator_type'] = info['stimulator_type']
+            stim['n_source'] = info['n_source']
+            stim['channels'] = info['channels']
+            stim['target_idc'] = info['target_idc']
+            stim['target_idc'] = info['target_idc']
+            stim['pcon'] = info['pcon']
+            stim['rate'] = info['rate']
+            stim['start'] = info['start']
+            stim['stop'] = info['stop']
+            stim['gmax'] = info['gmax']
+            stim['pfail'] = info['pfail']
+            
+    
+        for mon in cortex.monitors_info:
+            info = cortex.monitors_info[mon]
+            toml_dict['monitors'][mon] = {}
+            toml_dict['monitors'][mon]['type'] = info['type']
+            toml_dict['monitors'][mon]['variables'] = info['variables']
+            toml_dict['monitors'][mon]['idcs'] = info['idcs']
+            toml_dict['monitors'][mon]['interval'] = info['interval']
+            toml_dict['monitors'][mon]['start'] = info['start']
+            toml_dict['monitors'][mon]['stop'] = info['stop']
+            toml_dict['monitors'][mon]['population_agroupate'] = info['population_agroupate']
+            
+        
+        
+        
+        
+        with open(os.path.join(path, file_name), 'w') as f:
+            toml.dump(toml_dict, f)
+            
+        
     
     def _get_membrane_events_dict(self):
         membrane_events = {}
@@ -1148,7 +1536,9 @@ class Cortex(BaseClass):
     
     def _set_fluctuant_stimuli(self):
         if self.fluctuant_stimuli is not None:
-            for target, function, start, stop in self.fluctuant_stimuli:
+            for target, mod, func, start, stop in self.fluctuant_stimuli:
+                   
+                function = getattr(import_module(mod), func)
                 neuron_idcs = self.neuron_idcs(target)
                 
                 Nsteps_total = round(stop/(self.dt/br2.ms))
@@ -1359,34 +1749,3 @@ class _StimulatorSetup(BaseClass):
         return _StimulatorSetup(
             n_source, spike_idcs, spike_times, pairs, channel, gmax, pfail)
     
-if __name__ == '__main__':
-     
-    seed = 0
-    
-      
-    constant_stimuli = [
-                        [('PC', 0), 600],
-                        [('IN', 0), 0]
-                        ]
-    
-    # cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
-    #                     constant_stimuli=constant_stimuli, method='rk4',
-    #                     dt=0.05,seed=seed,            
-    #                     )
-    
-    # cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL', 0))
-    # cortex.run(3000)
-    
-    # import tools
-    # tools.raster_plot(cortex)
-    cortex = Cortex.load('tutorial-1_3',
-    constant_stimuli, 'rk4', 0.05, transient=1000)
-    
-    # neuron_idc = cortex.neuron_idcs(('ALL', 0))
-    # cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
-    # syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
-    # cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
-    cortex.run(11000)
-    
-    
-    pass

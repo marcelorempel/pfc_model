@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from pfc_model import *
 from pfc_model.analysis import*
 
+
 __all__ = ['task6']
 
 @time_report()
@@ -41,9 +42,9 @@ def task6(simulation_dir, seed=None):
     cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23,
                                pcon=pCon_reg, rate=rate, start=pulse0[0], 
                                stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, 
-                               pcon=pCon_reg, rate=rate, start=pulse1[0], 
-                               stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
+    # cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L5, 
+    #                            pcon=pCon_reg, rate=rate, start=pulse1[0], 
+    #                            stop=pulse1[1], gmax=gmax_reg, pfail=pfail_reg)
     
     cortex.run(duration)
     
