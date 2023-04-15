@@ -25,7 +25,8 @@ dependencies =[
     "scipy>=1.9.3",
     "xarray>=2022.12.0",
     "hmmlearn@git+https://github.com/hmmlearn/hmmlearn",
-    "seaborn>=0.12.2"
+    "seaborn>=0.12.2",
+    "toml>=0.10.2"
 ]
 
 [tool.hatch.metadata]
