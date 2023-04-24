@@ -921,8 +921,8 @@ class Cortex(BaseClass):
         
         Parameter
         ---------
-        idc: int
-            Index of requested neuron.
+        idc: int, array_like
+            Index or array of indices of requested neuron(s).
         
         Returns
         -------
@@ -935,7 +935,7 @@ class Cortex(BaseClass):
         delta_T = self.neurons.delta_T[idc]/br2.mV
         V_up = self.neurons.V_up[idc]/br2.mV
         tau_w = self.neurons.tau_w[idc]/br2.ms
-        b = self.neurons.V_T[idc]/br2.pA
+        b = self.neurons.b[idc]/br2.pA
         V_r = self.neurons.V_r[idc]/br2.mV
         V_T = self.neurons.V_T[idc]/br2.mV
         
