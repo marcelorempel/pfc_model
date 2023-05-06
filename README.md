@@ -111,7 +111,7 @@ pfc_model
         Tutorial-1.ipynb
         Tutorial-2.ipynb
         Tutorial-3.ipynb
-´´´
+```
 
 Scripts are placed inside src folder.
 
@@ -119,7 +119,7 @@ All the n໎ecessary items to perform a simulation must be imported from pfc_mod
 
 ```bash
 from pfc_model import *
-´´´
+```
 
 One can check an example of a simple simulation in pfc_model/example/example1. Other explanations can be found on the notebook tutorials in pfc_model/tutorial.
 
@@ -127,13 +127,13 @@ The scripts which implement analyses on network results are located in the subpa
 
 ```bash
 from pfc_model.analysis import *
-´´´
+```
 
 The scripts that replicate Hass et al's experiments and generate the results in our work can be found in the subpackage replication, which can be imported as follows.
 
 ```bash
 from pfc_model.replication import *
-´´´
+```
 
 ## Generating figures and data
 
