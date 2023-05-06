@@ -14,9 +14,7 @@ import xarray as xr
 from dataclasses import dataclass
 from warnings import filterwarnings
 import os
-import shutil
 import json
-from importlib import import_module
 from ._auxiliary import time_report, BaseClass
 from ._network_auxiliary import *
 from ._basics_setup import *
@@ -593,4 +591,29 @@ class Network(BaseClass):
         return syn_idcs
     
     
+    
+if __name__ == '__main__':
+    
+    # basics_scales={}
+    # gmax_scales = [(dict(target=group_sets['PC'], 
+    #source=group_sets['PC']), 2)]    
+    # basics_scales['gmax_mean'] = gmax_scales
+    # network = network_setup(1000, 1)
+    # network.save('New6')
+    # network = Network.load('New5')
+
+    # Ntrials = 25
+    # pop1 = np.zeros((Ntrials,2,7))
+    # for trial in range(Ntrials):
+    # alternative_pcells = np.asarray([10, 5, 5, 5, 5, 10, 10,
+    #                                  10, 5, 5, 5, 5, 10, 10])
+    network = network_setup(1000, 1)#, alternative_pcells=alternative_pcells)
+    
+    # group_sets = [[('PC_L23',0), ('IN_CC_L23', 0)],
+    #[('PC_L5',0), ('IN_CC_L5', 0)], [('IN_L_both', 0)], 
+    #[('IN_CL_both')], [('IN_F',0)] ]
+    # network.save('new_test')
+    # network.save('new_5000')
+    # for group in group_sets:
+    pass
     

@@ -455,11 +455,15 @@ class Cortex(BaseClass):
             Path where data will be saved.
         """
         
-        self.network.save(path)
-        if not os.path.isabs(path):
-            self._savefile = os.path.join(os.getcwd(), path)
+        if not os.path.isdir(path):
+            self.network.save(path)
+            if not os.path.isabs(path):
+                self._savefile = os.path.join(os.getcwd(), path)
+            else:
+                self._savefile = path
         else:
-            self._savefile = path
+            print('REPORT: Data could not be saved because directory'
+                  ' already exists.', end='\n\n')
     
     @time_report('Cortex simulation')
     def run(self, t, erase_longrun=True):
@@ -1319,14 +1323,9 @@ class Cortex(BaseClass):
             toml_dict['monitors'][mon]['stop'] = info['stop']
             toml_dict['monitors'][mon]['population_agroupate'] = info['population_agroupate']
             
-        
-        
-        
-        
         with open(os.path.join(path, file_name), 'w') as f:
             toml.dump(toml_dict, f)
             
-        
     
     def _get_membrane_events_dict(self):
         membrane_events = {}
@@ -1749,3 +1748,93 @@ class _StimulatorSetup(BaseClass):
         return _StimulatorSetup(
             n_source, spike_idcs, spike_times, pairs, channel, gmax, pfail)
     
+if __name__ == '__main__':
+     
+    
+    from _basics_setup import *
+    seed = 0
+    
+      
+    constant_stimuli = [
+                        [('PC', 0), 250],
+                        [('IN', 0), 200]
+                        ]
+    
+    # basics_scales = {'membr_param_std': [
+    #     (dict(par=list(membranetuple._fields),  group=group_sets['ALL']),
+    #      0.5)]}
+    
+    # cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
+    #                     constant_stimuli=constant_stimuli, method='rk4',
+    #                     dt=0.05,seed=seed,  basics_scales=basics_scales,         
+    #                     )
+    # cortex.save('seed0A')
+  
+    cortex_neuron_scales = {}
+    cortex_syn_scales={}
+    cortex_neuron_scales['b'] = [[('PC_L23', 0), 20],
+                                 [('PC_L5', 0), 10]]    
+    cortex_syn_scales['tau_rec'] = [[('PC_L23', 0),('PC_L5', 0),
+                                        ['AMPA', 'NMDA'], 2]]
+                                   
+    # fluctuant_stimuli = [[('PC_L23', 0), '.'.join(['A', 'G']), 'function', 1500, 2500]]
+    cortex = Cortex.load('seed0', constant_stimuli, 'rk4', 0.05,
+                         cortex_neuron_scales=cortex_neuron_scales,
+                         cortex_syn_scales=cortex_syn_scales)
+    # cortex = Cortex.load('seed0', constant_stimuli, 'rk4', 0.05,
+    #                       fluctuant_stimuli=fluctuant_stimuli)
+    
+    
+    ALL = cortex.neuron_idcs(('ALL', 0))
+    cortex.set_neuron_monitors('I_inj', 'I_inj', ALL)
+    # cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ALL,  5000, 
+    #                                    start=1000, stop=31000, 
+    #                                    population_agroupate='sum')
+    
+    
+    
+    # PC_L23 = cortex.neuron_idcs(('PC_L23',0))
+    
+    # pCon_reg = 0.2
+    # pulse0, rate0 = (1100, 1105), 50000
+    # pulse1, rate1 = (2100, 2105), 100000
+    # gmax_reg = 0.1
+    # pfail_reg=0
+    # cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, 
+    #                            pcon=pCon_reg, rate=rate0, start=pulse0[0], 
+    #                            stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
+    
+    
+    # pCon_reg = 0.05
+    # pulse0=(1100, 1200)
+    # pulse1=(2100, 2200)
+    # rate=10
+    # gmax_reg = 2
+    # pfail_reg=0
+    # PC_L23 = cortex.neuron_idcs(('PC_L23',0))
+    # PC_L5 = cortex.neuron_idcs(('PC_L5',0))
+    
+    # cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23,
+    #                            pcon=pCon_reg, rate=rate, start=pulse0[0], 
+    #                            stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
+    
+    # G = import_module('G')
+    # cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL', 0))
+    # cortex.run(3000)
+    
+    # I = cortex.recorded.I_inj.I_inj/br2.pA
+    # t = cortex.recorded.I_inj.t/br2.ms
+    
+    # import tools
+    # tools.raster_plot(cortex)
+    # cortex = Cortex.load('tutorial-1_3',
+    # constant_stimuli, 'rk4', 0.05, transient=1000)
+    
+    # neuron_idc = cortex.neuron_idcs(('ALL', 0))
+    # cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
+    # syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
+    # cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
+    # cortex.run(2000)
+    
+    
+    pass

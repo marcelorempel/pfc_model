@@ -4,13 +4,14 @@ from .._auxiliary import *
 
 @time_report()
 def tasks(simulation_dir, seed, Ntrials, Iexc_arr, Iinh_arr, duration):
-    task1(simulation_dir=simulation_dir, Ntrials=Ntrials)
-    task2(simulation_dir=simulation_dir, seed=seed)
-    task3(simulation_dir=simulation_dir, seed=seed)
+    task1(simulation_dir, seed)
+    task2(simulation_dir)
+    task3(simulation_dir=simulation_dir, Ntrials=Ntrials)
     task4(simulation_dir=simulation_dir, seed=seed)
-    task5(simulation_dir=simulation_dir)
-    task6(simulation_dir=simulation_dir, seed=seed)
-    task7(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
+    task5(simulation_dir=simulation_dir, seed=seed)
+    task6(simulation_dir=simulation_dir)
+    task7(simulation_dir=simulation_dir, seed=seed)
+    task8(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
         Iinh_arr=Iinh_arr, seed=seed, duration=duration)
 
 if __name__ == '__main__':

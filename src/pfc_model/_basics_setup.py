@@ -19,7 +19,6 @@ from collections import namedtuple
 import brian2 as br2
 from ._auxiliary import *
 
-
 __all__ = ['basics_setup', 'membranetuple', 'group_sets']
 
 #################################################
@@ -1361,7 +1360,7 @@ def basics_setup(n_cells_prompted, n_stripes, basics_scales=None,
     
     if cellsetup.n_cells != n_cells_prompted and disp:
         print(('REPORT: The number of neurons was adjusted from {} to {} due '
-               'to roundings.\n'.format(n_cells_prompted, cellsetup.n_cells)))
+               'to rounding.\n'.format(n_cells_prompted, cellsetup.n_cells)))
              
     return _BasicsSetup(cellsetup, membrane_setup, synapses_setup, 
                        eqs_setup, scalables, basics_scales)
@@ -1510,4 +1509,16 @@ class _BasicsSetup(BaseClass):
     scalables: any
     scales: any
 
-  
+    
+if __name__ == '__main__':
+   
+    n1=1000
+    n_stripes=1
+
+    membr_param_std = [(dict(group=group_sets['ALL'], 
+                              par=_membpar_names), 0.9)]
+    basics_scales = {'membr_param_std': membr_param_std}
+
+    _basics = basics_setup(n1, n_stripes,
+                            basics_scales=basics_scales, 
+                           disp=False)
