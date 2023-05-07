@@ -146,7 +146,7 @@ from pfc_model import *
 simulation_dir = set_simulation_dir(name=name_of_dir)
 ```
 
-This code snippet creates a new directory called name_of_dir in the current working directory. If name_of_dir already exists, "_X" is appended to the end of the name, where X is the lowest non-negative integer so that the resulting name corresponds to a nonexistent directory (e.g. if name_of_dir already exists, name_of_dir_0 is created; if name_of_dir and name_of_dir_0 already exist, name_of_dir_1 is created, and so on). If no name is provided, name_of_dir is set to "Simulation_X", where X is the lowest non-negative integer so that the resulting name corresponds to a nonexistent directory (e.g. the first call of the function creates "Simulation_0", the second one creates "Simulation_1" and so on).
+This code snippet creates a new directory called name_of_dir in the current working directory. If name_of_dir already exists, "_X" is appended to the end of the name, where X is the lowest positive integer so that the resulting name corresponds to a nonexistent directory (e.g. if name_of_dir already exists, name_of_dir_1 is created; if name_of_dir and name_of_dir_1 already exist, name_of_dir_2 is created, and so on). If no name is provided, name_of_dir is set to "Simulation_X", where X is the lowest positive integer so that the resulting name corresponds to a nonexistent directory (e.g. the first call of the function creates "Simulation_1", the second one creates "Simulation_2" and so on).
 
 # Generating figures and data
 
@@ -160,18 +160,19 @@ In order perform task1, one can run:
 from pfc_model.replication import *
 import numpy as np
 
-simulation_dir = set_simulation_dir()
+simulation_dir = set_simulation_dir('Results_task1')
 seed = 0
 
 task1(simulation_dir, seed)
 ```
+Here, the results will be saved in a new directory called 'Results_task1' (or 'Results_task1_X', where X is the lowest positive integer so that the resulting name corresponds to a nonexistent directory, if 'Results_task1' already exists).
 
 In order to perform all taks, one can run:
 ```bash
 from pfc_model.replication import *
 import numpy as np
 
-simulation_dir = set_simulation_dir()
+simulation_dir = set_simulation_dir(Results_taskset)
 seed = 0
 Iexc_arr = np.arange(0, 600, 100)
 Iinh_arr = np.arange(0, 600, 100)
@@ -188,6 +189,7 @@ task7(simulation_dir=simulation_dir, seed=seed)
 task8(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
     Iinh_arr=Iinh_arr, seed=seed, duration=duration)
 ```
+Here, the results will be saved in a new directory called 'Results_taskset' (or 'Results_taskset_X', where X is the lowest positive integer so that the resulting name corresponds to a nonexistent directory, if 'Results_taskset' already exists).
 
 The function taskset performs all the tasks. It can be set as:
 
@@ -195,7 +197,7 @@ The function taskset performs all the tasks. It can be set as:
 from pfc_model.replication import *
 import numpy as np
 
-simulation_dir = set_simulation_dir()
+simulation_dir = set_simulation_dir('Results_taskset')
 seed = 0
 Iexc_arr = np.arange(0, 600, 100)
 Iinh_arr = np.arange(0, 600, 100)
@@ -205,14 +207,17 @@ Ntrials=100
 taskset(simulation_dir=simulation_dir, seed=seed, Ntrials=Ntrials,
           Iexc_arr=Iexc_arr, Iinh_arr=Iinh_arr, duration=duration)
 ```
+Here, the results will be saved in a new directory called 'Results_task1' (or 'Results_task1_X', where X is the lowest positive integer so that the resulting name corresponds to a nonexistent directory, if 'Results_task1' already exists).
+
 
 Alternatively, one can performing the tasks running the corresponding script, as follows. The function arguments are set in the scripts as presented in the above code snippets. 
 
-- For one of the tasks, as task1:
+- For taskY (where Y is 1, 2, 3, 4, 5, 6, 7 or 8):
 
 ```bash
-$ python -m pfc_model.replication.task1
+$ python -m pfc_model.replication.taskY
 ```
+Here, the directory name for saving results is set to 'Results_taskY'.
 
 - For all tasks:
 
@@ -220,47 +225,63 @@ $ python -m pfc_model.replication.task1
 $ python -m pfc_model.replication.taskset
 ```
 
-Note that, in each script, results are saved in a new directory called Simulation_X (X is a non-negative integer). 
+If one calls separetely the task scripts, one different directory, "Results_taskY" (or else "Results_taskY_X", if the same script is run more than once) will be created for each one, and the results will be saved in different directories.
+
+If one manually sets simulation_dir once and calls all the task functions, or else if one runs pfc_model.replication.taskset, all results will be saved in the same directory.
+
+Notice that running task3 and task8 (as well as taskset) scripts will take a larger amount of time as they perform multiple simulations (task3 is set to perform 100 simulations, and task8 is set to perform 24 x 24 = 576 simulations). Alternatively, one can manually call the functions task3 or task8 and pass other arguments, according to their documentation, to perform a faster study.
 
 # Location of figures and data
 
-We will generically call the directory where results are saved as "Simulation_X". If the results are obtained running taskset module, all results will be saved in the same directory (if they are generated in the first simulation in the current working directory, the simulation directory will be called "Simulation_0"). If the tasks are performed separetelly, they will be saved in different directories (as explained above).
+We will generically call the directory where results are saved as "Results_dir" (the directory name generated by the scripts are explained above).
 
 - Figure 1
-It is generated by task1 (and taskset) and saved as "Simulation_X/Figures/Fig01.png".
+
+It is generated by task1 (and taskset) and saved as "Results_dir/Figures/Fig01.png".
 
 - Figure 2
-It is generated by task2 (and taskset) and saved as "Simulation_X/Figures/Fig02.png".
+
+It is generated by task2 (and taskset) and saved as "Results_dir/Figures/Fig02.png".
 
 - Figure 3
-It is generated by task2 (and taskset) and saved as "Simulation_X/Figures/Fig03.png".
+
+It is generated by task2 (and taskset) and saved as "Results_dir/Figures/Fig03.png".
 
 - Figure 4
-It is generated by task4 (and taskset) and saved as "Simulation_X/Figures/Fig04.png".
+
+It is generated by task4 (and taskset) and saved as "Results_dir/Figures/Fig04.png".
 
 - Figure 5
-It is generated by task4 (and taskset) and saved as "Simulation_X/Figures/Fig05.png".
+
+It is generated by task4 (and taskset) and saved as "Results_dir/Figures/Fig05.png".
 
 - Figure 6
-It is generated by task4 (and taskset) and saved as "Simulation_X/Figures/Fig06.png".
+
+It is generated by task4 (and taskset) and saved as "Results_dir/Figures/Fig06.png".
 
 - Figure 7
-It is generated by task4 (and taskset) and saved as "Simulation_X/Figures/Fig07.png".
+
+It is generated by task4 (and taskset) and saved as "Results_dir/Figures/Fig07.png".
 
 - Figure 8
-It is generated by task4 (and taskset) and saved as "Simulation_X/Figures/Fig08.png".
+
+It is generated by task4 (and taskset) and saved as "Results_dir/Figures/Fig08.png".
 
 - Figure 9
-It is generated by task5 (and taskset) and saved as "Simulation_X/Figures/Fig09.png".
+
+It is generated by task5 (and taskset) and saved as "Results_dir/Figures/Fig09.png".
 
 - Figure 10
-It is generated by task6 (and taskset) and saved as "Simulation_X/Figures/Fig10.png".
+
+It is generated by task6 (and taskset) and saved as "Results_dir/Figures/Fig10.png".
 
 - Figure 11
-It is generated by task7 (and taskset) and saved as "Simulation_X/Figures/Fig11.png".
+
+It is generated by task7 (and taskset) and saved as "Results_dir/Figures/Fig11.png".
 
 - Figure 12
-It is generated by task8 (and taskset) and saved as "Simulation_X/Figures/Fig12.png".
+
+It is generated by task8 (and taskset) and saved as "Results_dir/Figures/Fig12.png".
 
 
 
