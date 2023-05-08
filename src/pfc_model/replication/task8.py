@@ -10,7 +10,7 @@ __all__ = ['task8']
 
 @time_report()
 def task8(simulation_dir, Iexc_arr, Iinh_arr, seed=None, transient=1000, 
-          duration=11000):
+          duration=13000):
     
     Iexc_applied = []
     Iinh_applied = []
@@ -203,4 +203,13 @@ def _fig12(Iexc_arr, Iinh_arr, results_list, name_list,
     plt.show()
     
         
+if __name__ == '__main__':
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
+    seed = 0
+    Iexc_arr = np.arange(0, 600, 25)
+    Iinh_arr = np.arange(0, 600, 25)
+    duration=13000
+
+    task8(simulation_dir=simulation_dir, Iexc_arr=Iexc_arr, 
+        Iinh_arr=Iinh_arr, seed=seed, duration=duration)
     

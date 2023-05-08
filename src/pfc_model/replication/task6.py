@@ -93,31 +93,30 @@ def task6(simulation_dir, seed_list=None):
     
     if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
         os.mkdir(os.path.join(simulation_dir, 'Reports'))
-    
-    if not os.path.isdir(os.path.join(simulation_dir, 'Reports', 
-                                      'Param_std_variation')):
-        os.mkdir(os.path.join(simulation_dir, 'Reports', 
-                              'Param_std_variation'))
         
-        with open(os.path.join(
-                simulation_dir, 'Reports', 'Param_std_variation', 
-                'Activity.txt'), 'w') as f:
-            print('N trials:', Ntrials, file=f)
-            print('Seed list:', seed_list, file=f)
-            print('Std list:', Membr_std_list, file=f)
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports', 'Stimulation')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports', 'Stimulation'))
+    
+        
+    with open(os.path.join(
+            simulation_dir, 'Reports', 'Stimulation', 
+            'Param_std_variation.txt'), 'w') as f:
+        print('N trials:', Ntrials, file=f)
+        print('Seed list:', seed_list, file=f)
+        print('Std list:', Membr_std_list, file=f)
+        print(file=f)
+        print('L2/3', file=f)
+        for std in range(len(Membr_std_list)):        
+            print('Std:', Membr_std_list[std], file=f)
+            print(PC_L23_results[std], file=f)
             print(file=f)
-            print('L2/3', file=f)
-            for std in range(len(Membr_std_list)):        
-                print('Std:', Membr_std_list[std], file=f)
-                print(PC_L23_results[std], file=f)
-                print(file=f)
-            print('-'*20, file=f)
-            print('L5', file=f)
-            for std in range(len(Membr_std_list)):        
-                print('Std:', Membr_std_list[std], file=f)
-                print(PC_L5_results[std], file=f)
-                print(file=f)
-           
+        print('-'*20, file=f)
+        print('L5', file=f)
+        for std in range(len(Membr_std_list)):        
+            print('Std:', Membr_std_list[std], file=f)
+            print(PC_L5_results[std], file=f)
+            print(file=f)
+       
     _fig10(Membr_std_list, PC_L23_results, PC_L5_results, simulation_dir)
 
     
@@ -168,3 +167,6 @@ def _fig10(Membr_std_list, PC_L23, PC_L5, path):
     plt.legend(prop={'size': 26})
     plt.savefig(os.path.join(path,'Figures','Fig10.png'))
     
+if __name__ == '__main__':
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
+    task6(simulation_dir=simulation_dir)

@@ -194,7 +194,7 @@ def task3(simulation_dir, Ntrials=100, seed_list=None):
     results_name = ['PC', 'IN', 'All cells']
 
     with open(os.path.join(simulation_dir, 'Reports', 'Spikingcells',
-                           'spikingcells_membparams.txt'), 'w') as f:
+                           'spikingcells_fraction.txt'), 'w') as f:
          print('Spiking cell statistics', file=f)
          print('Spiking threshold: {} Hz'.format(spiking_threshold), file=f)
          print('Number of trials: {}'.format(Ntrials), file=f)
@@ -421,8 +421,8 @@ def task3(simulation_dir, Ntrials=100, seed_list=None):
     
     
          
-if __name__ == '__main__':
-    simulation_dir = set_simulation_dir()
+if __name__ == '__main__':    
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     Ntrials=100
     seed_list = [i for i in range(Ntrials)]
     task3(simulation_dir, Ntrials=Ntrials, seed_list=seed_list)

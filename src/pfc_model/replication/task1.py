@@ -39,7 +39,7 @@ def task1(simulation_dir, seed=0):
                       alias_list = aliases,
                       file=os.path.join(simulation_dir, 'Reports', 
                                         'Param_description',
-                                        'spikingcells_pcon.txt'))
+                                        'description_membparams.txt'))
     _fig01(cortex, simulation_dir)
 
 def _fig01(cortex, path):  
@@ -93,7 +93,7 @@ def _fig01(cortex, path):
 
          
 if __name__ == '__main__':
-    simulation_dir = set_simulation_dir()
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     seed=0
     task1(simulation_dir, seed)
     

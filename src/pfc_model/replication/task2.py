@@ -235,6 +235,6 @@ def _S(V):
     return 1/(1+0.33*np.exp(-0.0625*V))
 
 if __name__ == '__main__':
-    simulation_dir = set_simulation_dir()
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     task2(simulation_dir)
 

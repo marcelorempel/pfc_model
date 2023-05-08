@@ -75,8 +75,11 @@ def task5(simulation_dir, seed=None):
     if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
         os.mkdir(os.path.join(simulation_dir, 'Reports'))
         
-    with open(os.path.join(simulation_dir, 'Reports', 
-                           'RegPulses__spikingcounts.txt'), 'w') as f:
+    if not os.path.isdir(os.path.join(simulation_dir, 'Reports', 'Stimulation')):
+        os.mkdir(os.path.join(simulation_dir, 'Reports', 'Stimulation'))
+        
+    with open(os.path.join(simulation_dir, 'Reports', 'Stimulation',
+                           'RegPulses.txt'), 'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -171,13 +174,9 @@ def task5(simulation_dir, seed=None):
             delta_t=delta_t), 
         axis=0)
     
-    
-    if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
-        os.mkdir(os.path.join(simulation_dir, 'Reports'))
-        
     with open(os.path.join(
-            simulation_dir, 'Reports',
-            'RegPulses_RedSTD__spikingcounts.txt'), 'w') as f:
+            simulation_dir, 'Reports', 'Stimulation',
+            'RegPulses_RedSTD.txt'), 'w') as f:
         print('Regular pulses on PC_L23', end='\n\n', file=f)
         print('gmax:', gmax_reg, file=f)
         print('pCon:', pCon_reg, file=f)
@@ -280,6 +279,5 @@ def _fig09(cortex, cortex_red, pulse0, pulse1, path):
     
 
 if __name__ == '__main__':
-    seed = 0
-    simulation_dir = set_simulation_dir()
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     task5(simulation_dir, seed)

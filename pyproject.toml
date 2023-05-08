@@ -4,7 +4,7 @@ build-backend = 'hatchling.build'
 
 [project]
 name = "pfc_model"
-version = "0.0.2"
+version = "0.1.0"
 authors = [
   { name="Marcelo Rempel", email="marcelo.rafael@hotmail.com" },
 ]
@@ -27,6 +27,7 @@ dependencies =[
     "seaborn>=0.12.2",
     "toml>=0.10.2",
     "hmmlearn>=0.3.0",
+    "notebook>=3.11.3"
 ]
 
 

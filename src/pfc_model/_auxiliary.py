@@ -50,7 +50,7 @@ def set_simulation_dir(name=None):
         Resulting path name.   
     """
     if name is None:
-        num = 0
+        num = 1
         name = 'Simulation_{}'
         while os.path.isdir(name.format(num)):
             num+=1

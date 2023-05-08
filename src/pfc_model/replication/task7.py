@@ -48,8 +48,6 @@ def task7(simulation_dir, seed=None):
     
     cortex.run(duration)
     
-    # _fig11(cortex, pulse0, pulse1, simulation_dir)
-    
     ## Decreased gmax_mean
     basics_scales = {'gmax_mean': [(dict(target=group_sets['ALL'], 
                                          source=group_sets['IN']), 0.5)]}
@@ -80,14 +78,6 @@ def _fig11(cortex, cortex_dec, pulse0, pulse1, path):
     _poissonfigures(cortex, cortex_dec, pulse0, pulse1, 
                     os.path.join(path,'Figures','Fig11.png')
                     )
-    
-# def _fig10(cortex, pulse0, pulse1, path):    
-#     if not os.path.isdir(os.path.join(path, 'Figures')):
-#         os.mkdir(os.path.join(path, 'Figures'))
-#     _poissonfigures(cortex, pulse0, pulse1, 
-#                     os.path.join(path,'Figures','Fig10.png') 
-#                     )
-
 
 def _poissonfigures(cortex, cortex_dec, pulse0, pulse1, file):
 
@@ -188,6 +178,6 @@ def _poissonfigures(cortex, cortex_dec, pulse0, pulse1, file):
     plt.savefig(file)
 
 if __name__ == '__main__':
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     seed = 0
-    simulation_dir = set_simulation_dir()
     task7(simulation_dir=simulation_dir, seed=seed)

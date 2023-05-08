@@ -2,8 +2,10 @@ import numpy as np
 from pfc_model.replication import *
 from .._auxiliary import *
 
+__all__ = ['taskset']
+
 @time_report()
-def tasks(simulation_dir, seed, Ntrials, Iexc_arr, Iinh_arr, duration):
+def taskset(simulation_dir, seed, Ntrials, Iexc_arr, Iinh_arr, duration):
     task1(simulation_dir, seed)
     task2(simulation_dir)
     task3(simulation_dir=simulation_dir, Ntrials=Ntrials)
@@ -15,14 +17,14 @@ def tasks(simulation_dir, seed, Ntrials, Iexc_arr, Iinh_arr, duration):
         Iinh_arr=Iinh_arr, seed=seed, duration=duration)
 
 if __name__ == '__main__':
-    simulation_dir = set_simulation_dir()
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     seed = 0
 
-    Iexc_arr = np.arange(0, 600, 100)
-    Iinh_arr = np.arange(0, 600, 100)
+    Iexc_arr = np.arange(0, 600, 25)
+    Iinh_arr = np.arange(0, 600, 25)
     duration=13000
-    Ntrials=30
+    Ntrials=100
 
-    tasks(simulation_dir=simulation_dir, seed=seed, Ntrials=Ntrials,
+    taskset(simulation_dir=simulation_dir, seed=seed, Ntrials=Ntrials,
           Iexc_arr=Iexc_arr, Iinh_arr=Iinh_arr, duration=duration)
 	

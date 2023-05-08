@@ -77,51 +77,8 @@ def task4(simulation_dir, seed=None):
                     for train in text.split(';')]
     # original
    
-    # if not os.path.isdir(os.path.join(simulation_dir, 'Reports')):
-    #     os.mkdir(os.path.join(simulation_dir, 'Reports'))
+
      
-    
-    # if not os.path.isdir(os.path.join(simulation_dir, 
-    #                               'Reports', 'Param_comparisons')):
-    #     os.mkdir(os.path.join(simulation_dir, 'Reports', 'Param_comparisons')) 
-    
-    # # text output#
-    # aliases = ['PC', 'fast-spiking cells','bitufted cells', 'basket cells', 
-    #            'Matinotti cells']
-    # get_membr_params(cortex_rk4,
-    #                  [('PC',0), ('IN_L_both',0), ('IN_CL_both',0), 
-    #                   ('IN_CC',0), ('IN_F',0)], 
-    #                  alias_list = aliases, 
-    #                  file=os.path.join(simulation_dir, 'Reports', 
-    #                                    'Param_comparisons',
-    #                                    'membr_params.txt'))
-    
-    # get_spiking(cortex_rk4, 0.33, ('PC', 0), 
-    #             file=os.path.join(simulation_dir, 'Reports', 
-    #                               'Param_comparisons', 'spiking.txt'))
-    
-    # comp_membrparam_rategroup(
-    #     cortex_rk4, 0.33, [('ALL',0), ('PC_L23',0), ('PC_L5', 0), ('PC', 0)], 
-    #     file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
-    #                       'membr_params_comparison.txt'))
-    
-    # for channel in cortex_rk4.network.basics.syn.channels.names:
-    #     contingency(
-    #         cortex_rk4, 0.33, 
-    #         [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], ('ALL', 0), 
-    #         channel=channel,
-    #         file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
-    #                           'pcon_contingency_{}.txt'.format(channel)))
-        
-    #     comp_synparam_rategroup(
-    #         cortex_rk4, 0.33, [('PC_L23',0), ('PC_L5', 0), ('PC', 0), ('ALL',0)], 
-    #         ('ALL', 0), channel=channel, 
-    #         file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons'
-    #                           'syn_params_comparison_{}.txt'.format(channel)))
-    
-    # text output\\
-    
-    
     # -> raster plots
     _fig04(cortex_rk4, cortex_rk2, (duration_rk4-6000, duration_rk4), simulation_dir)
     
@@ -523,6 +480,6 @@ def _SPDfigures(frequency_list, power_list):
     plt.legend(fontsize=20, labels=['rk4', 'gsl_rk2', 'original'])
 
 if __name__ == '__main__':
-    simulation_dir = set_simulation_dir()
+    simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
     seed=0
     task4(simulation_dir=simulation_dir, seed=seed)
