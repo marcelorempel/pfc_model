@@ -1,3 +1,9 @@
+""" This script defines task7.
+
+task7 analyzes the transmission of activation between layers with the default
+and with supression inhibition.
+"""
+
 import os
 import matplotlib.transforms as mtransforms
 from matplotlib import pyplot as plt
@@ -8,6 +14,21 @@ __all__ = ['task7']
 
 @time_report()
 def task7(simulation_dir, seed=None):
+    """Analyze the transmission of activation between layers with the default
+    and with supression inhibition.
+    
+    The figure representing the raster plots of network responses to stimuli
+    is saved to "simulation_dir/Figures/Fig11.png".
+    
+    Here, "simulation_dir" is to be replaced by the actual argument. 
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    seed: int, optional
+        Random seed. If not given, no seed is set. 
+    """
 
     # Network setup
     n_cells=1000

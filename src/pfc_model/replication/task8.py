@@ -1,3 +1,10 @@
+""" This script defines task7.
+
+task8 compairs fraction of spiking PCs and measures of ISI activity for 
+networks for different background currents directed to PCs and INs of L2/3.
+"""
+
+
 import os
 import numpy as np
 from matplotlib import pyplot as plt
@@ -11,6 +18,31 @@ __all__ = ['task8']
 @time_report()
 def task8(simulation_dir, Iexc_arr, Iinh_arr, seed=None, transient=1000, 
           duration=13000):
+    """Compairs fraction of spiking PCs and measures of ISI activity for 
+    networks for different background currents directed to PCs and INs of 
+    L2/3. The default background currents to L5 are maintained.
+    
+    The figure representing the results is saved to
+    "simulation_dir/Figures/Fig12.png". Here, "simulation_dir" is to be 
+    replaced by the actual argument. 
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    Iexc_arr: array_like
+        Array of values of background current to PCs in L2/3.
+    Iinh_arr: array_like
+        Array of values of background current to PCs in L5.
+    seed: int, optional
+        Random seed. If not given, no seed is set. 
+    transient: int or float, optional
+        Value of transient period (which is not recorded nor analyzed due to
+        artefacts of simulation onset) in ms. If not given, it defaults to
+        1000.
+    duration: int or float, optional
+        Duration of simulation in ms. If not given, it defaults to 13000.
+    """
     
     Iexc_applied = []
     Iinh_applied = []

@@ -1,3 +1,9 @@
+""" This script defines task6.
+
+task6 analyzes the effect of reducing variability of membrane parameters
+on network response to stimuli.
+"""
+
 import numpy as np
 import os
 from matplotlib import pyplot as plt
@@ -7,9 +13,30 @@ from pfc_model.analysis import*
 __all__ = ['task6']
 
 @time_report()
-def task6(simulation_dir, seed_list=None):
+def task6(simulation_dir, Ntrials=5, seed_list=None):
+    """Analyze the effect of reducing variability of membrane parameters
+    on network response to stimuli.
+    
+    The figure representing the comparisons of network response is saved to
+    "simulation_dir/Figures/Fig10.png"
+        
+    The measures are saved to "simulation_dir/Reports/Stimulation
+    /Param_std_variation.txt".
+    
+    Here, "simulation_dir" is to be replaced by the actual argument. 
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    Ntrials: int, optional
+        Number of simulations to be performed and included in the analyses.
+        If not given, it defaults to 5.
+    seed_list: list[int]
+        List of integers with seed numbers. Its length must be equal to 
+        Ntrials. If not given, it default to the list from 0 to Ntrials-1.
+    """
 
-    Ntrials = 5
     Membr_std_list = np.asarray([0,20,40,60,80,100])/100
     
     if seed_list is None:
@@ -169,4 +196,5 @@ def _fig10(Membr_std_list, PC_L23, PC_L5, path):
     
 if __name__ == '__main__':
     simulation_dir = set_simulation_dir('Results_'+os.path.basename(__file__)[:-3])
-    task6(simulation_dir=simulation_dir)
+    Ntrials=5
+    task6(simulation_dir=simulation_dir, Ntrials=5)

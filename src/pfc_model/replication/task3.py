@@ -1,3 +1,9 @@
+""" This script defines task3.
+
+task3 compairs the fraction of spiking and not-spiking cells, as well as
+theirs membrane and synaptic parameters and probabilities of connection.
+"""
+
 import numpy as np
 import os
 from pfc_model import *
@@ -7,6 +13,48 @@ __all__ = ['task3']
 
 @time_report()
 def task3(simulation_dir, Ntrials=100, seed_list=None):
+    """Compair the fraction of spiking and not-spiking cells, as well as
+    theirs membrane and synaptic parameters and probabilities of connection in
+    subsequent independent simulations.
+    
+    - The summary report of the fraction of spiking cells are saved to:
+        "simulation_dir/Reports/Spikingcells/spikingcells_fraction.txt"
+    
+    - The summary report of comparisons of membrane parameters are saved to:
+        "simulation_dir/Reports/Param_comparisons/spikingcells_membparams.txt"
+      The individual reports are saved to:
+        "simulation_dir/Reports/Param_comparisons/individuals/
+        membr_params_comparison_seed_Y.txt" (Y must be replaced by seed number)
+        
+    - The summary report of comparisons of synaptic parameters are saved to:
+        "simulation_dir/Reports/Param_comparisons/spikingcells_synparams.txt"
+      The individual reports are saved to:
+        "simulation_dir/Reports/Param_comparisons/individuals/
+        syn_params_comparison_CHANNEL_seed_Y.txt"
+        (Y must be replaced for seed number and
+         CHANNEL for AMP, GABA or NMDA).
+          
+    - The summary report of comparisons of probabilities of connection:
+        "simulation_dir/Reports/Param_comparisons/spikingcells_pcon.txt"
+      The individual reports are saved to:
+        "simulation_dir/Reports/Param_comparisons/individuals/
+        pcon_contingency_AMPA_seed_Y.txt"
+        (Y must be replaced for seed number and
+         CHANNEL for AMP, GABA or NMDA).
+        
+    Here, "simulation_dir" is to be replaced by the actual argument. 
+        
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    Ntrials: int, optional
+        Number of simulations to be performed and included in the analyses.
+        If not given, it defaults to 100.
+    seed_list: list[int]
+        List of integers with seed numbers. Its length must be equal to 
+        Ntrials. If not given, it default to the list from 0 to Ntrials-1.
+    """
     if seed_list is None:
         seed_list = [i for i in range(Ntrials)]
     else:

@@ -1,3 +1,10 @@
+""" This script defines task2.
+
+task2 draws a picture representing the effect of STSP on pos-synaptic
+conductance response to the pre-synaptic spikes. task2 also draws a
+picture representing the curve of modulation of NMDA currents due to Mg2+.
+"""
+
 import brian2 as br2
 import numpy as np
 import os
@@ -5,9 +12,24 @@ from matplotlib import pyplot as plt
 import matplotlib.transforms as mtransforms
 from pfc_model.analysis import*
 
+
 __all__ = ['task2']
 
 def task2(simulation_dir):
+    """Draws pictures representing components of the network:
+        - effect of STSP on pos-synaptic conductance response to the 
+        pre-synaptic spikes;
+        - curve of modulation of NMDA currents due to Mg2+.
+    
+    These pictures are saved respectively to
+    "simulation_dir/Figures/Fig02.png" and simulation_dir/Figures/Fig02.png",
+    where "simulation_dir" is to be replaced by the actual argument. 
+    
+    Parameter
+    ---------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    """
     if not os.path.isdir(os.path.join(simulation_dir, 'Figures')):
         os.mkdir(os.path.join(simulation_dir, 'Figures'))
         

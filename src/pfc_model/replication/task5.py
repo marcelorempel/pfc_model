@@ -1,3 +1,10 @@
+""" This script defines task5.
+
+task5 performs a protocol of stimulation of the network using
+regular pulses with default and with reduced variability of membrane
+parameters.
+"""
+
 import numpy as np
 import os
 import matplotlib.transforms as mtransforms
@@ -10,6 +17,25 @@ __all__ = ['task5']
 
 @time_report()
 def task5(simulation_dir, seed=None):
+    """Perform a protocol of stimulation of the network using
+    regular pulses with default and with reduced variability of membrane
+    parameters.
+    
+    The figure representing the raster plots of network responses to stimuli
+    is saved to "simulation_dir/Figures/Fig09.png".
+    
+    The counting of spikes after the stimuli is saved to 
+    "simulation_dir/Reports/Stimulation/RegPulses_RedSTD.txt".
+    
+    Here, "simulation_dir" is to be replaced by the actual argument. 
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    seed: int, optional
+        Random seed. If not given, no seed is set. 
+    """
     
     n_cells=1000
     n_stripes=1

@@ -1,3 +1,11 @@
+""" This script defines task1.
+
+In task1, a network instance is built, and the means and standard deviations
+of the membrane paramaters of each kind of distribution are measured. The
+network has 5000 neurons, which are equally distributed among the distribution
+types.
+"""
+
 import numpy as np
 import os
 from pfc_model import *
@@ -5,7 +13,25 @@ from pfc_model import *
 __all__ = ['task1']
 
 @time_report()
-def task1(simulation_dir, seed=0):
+def task1(simulation_dir, seed=None):
+    """ Build a network instance with 5000 neurons equally distributed
+    among the five distribution types and measure the mean and
+    standard deviation of their membrane paramaters.
+    
+    - The resulting measures are saved to 
+    "simulation_dir/Reports/Param_description/description_membparams.txt".
+    - The figure with the kernel distribution estimate plots for membrane
+    parameters of PC and IN-CC L2/3 are saved in
+    "simulation_dir/Figures/Fig01.png". Here, "simulation_dir" must be
+    replaced by the actual argument.
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    seed: int, optional
+        Random seed. If not given, no seed is set. 
+    """
     n_cells=5000
     n_stripes=1
     constant_stimuli = [[('PC', 0), 250],

@@ -1,3 +1,9 @@
+""" This script defines task4.
+
+task4 performs ISI analyses on the model simulated using rk4 and gsl_rk2
+algorithms and also the results from Hass et al's code.
+"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.transforms as mtransforms
@@ -11,10 +17,46 @@ from pfc_model.analysis import*
 
 __all__ = ['task4']
 
-    
-
-@time_report()
+@time_reprt()
 def task4(simulation_dir, seed=None):
+    """ Perform ISI analyses on the model simulated using rk4 and gsl_rk2
+    algorithms and also the results from Hass et al's code.
+    
+    The figure representing the raster plots is saved to
+    "simulation_dir/Figures/Fig04.png".
+    
+    The figure representing ISI mean and CV distribution and the
+    zero-lag cross-correlatation is saved to "simulation_dir/Figures/
+    Fig05.png".
+    
+    The figure representing the autocorrelation is saved to 
+    "simulation_dir/Figures/Fig06.png"
+    
+    The figure representing LFP SPD is saved to "simulation_dir/Figures/
+    Fig07.png".
+    
+    The figure representing the distribution of V standard devition is
+    saved to "simulation_dir/Figures/Fig08.png".
+    
+    Statistical measures of ISI and V  analuses are saved to 
+    "simulation_dir/Reports/ISI_analysis/ISIstats_rk4.txt",
+    "simulation_dir/Reports/ISI_analysis/Correlations_rk4.txt",
+    "simulation_dir/Reports/ISI_analysis/ISIstats_rk2.txt",
+    "simulation_dir/Reports/ISI_analysis/Correlations_rk2.txt", 
+    "simulation_dir/Reports/ISI_analysis/ISIstats_original.txt", 
+    "simulation_dir/Reports/ISI_analysis/Correlations_original.txt",
+    "simulation_dir/Reports/Vstats/VALLstats_rk4.txt" and
+    "simulation_dir/Reports/Vstats/VPCstats_rk4.txt".
+
+    Here, "simulation_dir" is to be replaced by the actual argument. 
+    
+    Parameters
+    ----------
+    simulation_dir: str
+        Path to directory where results are to be saved.
+    seed: int, optional
+        Random seed. If not given, no seed is set. 
+    """
     
     scr_path = Path(__file__).parent
 
