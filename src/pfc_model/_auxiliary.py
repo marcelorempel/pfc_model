@@ -2,8 +2,6 @@
 This script defines auxiliar functions used in other modules.
 
 It contains:
-    set_working_dir: a function that sets the working directory.
-    
     set_simulation_dir: a function that sets the directory intended to
     save simulation results.
     
@@ -22,15 +20,10 @@ import time as tm
 from dataclasses import dataclass
 import stat
 
-__all__ = ['set_working_dir', 'set_simulation_dir', 'time_report', 'BaseClass',
+__all__ = ['set_simulation_dir', 'time_report', 'BaseClass',
            'remove_read_only']
 
-def set_working_dir(name):
-    """Set working directory."""
-    
-    os.chdir(name)
-
-def set_simulation_dir(name=None):
+def set_simulation_dir(dname=None):
     """Set the directory where simulation results can be saved. If
     a directory with the requested name already exists, '_{}' is
     appended to the name ({} is the lowest integer so that the
@@ -38,8 +31,8 @@ def set_simulation_dir(name=None):
     
     Parameter
     ---------
-    name: str, optional
-        Name of the path. If not given, the default name 
+    dname: str, optional
+        Name of directory. If not given, the default name 
         'Simulation_{}' is set ({} is the lowest integer so 
         that the resulting name does not correspond to an 
         existing directory).
@@ -47,26 +40,28 @@ def set_simulation_dir(name=None):
     Returns
     -------
     out: str
-        Resulting path name.   
+        Resulting directory name.   
     """
-    if name is None:
+    
+    if dname is None:
         num = 1
-        name = 'Simulation_{}'
-        while os.path.isdir(name.format(num)):
+        dname = 'Simulation_{}'
+        while os.path.isdir(dname.format(num)):
             num+=1
-        name=name.format(num)
+        dname=dname.format(num)
+        
     else:
-        file_name = name
+        new_name = dname
         num = 1
-        while os.path.exists(file_name):
-            file_name = name + '_{}'.format(num)
+        while os.path.exists(new_name):
+            new_name = dname + '_{}'.format(num)
             num += 1
-        name = file_name
+        dname = new_name
     
-    os.mkdir(name)
-    print('REPORT: Directory created:', name, end='\n\n')
+    os.mkdir(dname)
+    print('REPORT: Directory created:', dname, end='\n\n')
     
-    return name
+    return dname
 
 def time_report(text=None):
     """ Decorator that measures execution duration of the wrapped
@@ -192,7 +187,7 @@ class BaseClass:
         setattr(self, item, value)
     
 def remove_read_only(func, path, excinfo):
-    # Using os.chmod with stat.S_IWRITE to allow write permissions
+    """Avoid error due to ready-only permissions."""
     os.chmod(path, stat.S_IWRITE)
     func(path)
     

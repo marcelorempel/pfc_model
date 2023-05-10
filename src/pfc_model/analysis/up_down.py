@@ -81,6 +81,31 @@ def get_UD_plots(states, t0, t1, dt, down_value=0, up_value=1):
     return t, new_states
 
 def get_updown_intervals(tarr, states, min_interval=0, min_t=0):
+    """Get UP and DOWN intervals from an array indicating the states in time
+    (1 - UP; 0 - DOWN).
+    
+    Parameters
+    ----------
+    tarr: array, list
+        Array or list corresponding to time (in ms).
+    states: array, list
+       Array of ints (0 and 1) corresponding to the states through the
+       time represented in tarr.
+    min_interval: int or float
+        Minimum time interval for a valid interval (in ms).
+    min_t: int or float
+        Minimum value of t to analyze (in ms).
+        
+    Returns
+    -------
+    Out1: list
+        List of UP intervals. Each interval is represented by a 2-tuple
+        with its start and stop time (in ms).
+    Out2: list
+        List of DOWN intervals. Each interval is represented by a 2-tuple
+        with its start and stop time (in ms).
+    """
+    
     start=0
     stop=0
     up = []
@@ -91,16 +116,16 @@ def get_updown_intervals(tarr, states, min_interval=0, min_t=0):
             stop = tarr[i]
             if stop-start >= min_interval and start>=min_t:
                 if states[i-1]==1:
-                    up.append([start, stop])
+                    up.append((start, stop))
                 else:
-                    down.append([start, stop])
+                    down.append((start, stop))
             start=stop
     stop=tarr[-1]+tarr[-1]-tarr[-2]
     if stop-start >= min_interval and start>=min_t:
         if states[i-1]==1:
-            up.append([start, stop])
+            up.append((start, stop))
         else:
-            down.append([start, stop])
+            down.append((start, stop))
     return up, down
 
 def set_updown_time(tarr, intervals):

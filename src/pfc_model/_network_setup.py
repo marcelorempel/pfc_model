@@ -289,25 +289,25 @@ class Network(BaseClass):
         
         return i_rheo.values
 
-    def save(self, path):
+    def save(self, dname):
         """Save network data into files.
         
         Parameter
         ---------
-        path: str
-            Path where data will be stored.
+        dname: str
+            Name of directory where data will be stored.
         """
-        if not os.path.isdir(path):
-            os.mkdir(path)
-        self.membr_params.to_netcdf(os.path.join(path,'membr_params.nc'))
+        if not os.path.isdir(dname):
+            os.mkdir(dname)
+        self.membr_params.to_netcdf(os.path.join(dname,'membr_params.nc'))
         self.refractory_current.to_netcdf(
-            os.path.join(path,'refractory_current.nc'))
+            os.path.join(dname,'refractory_current.nc'))
         
-        np.save(os.path.join(path,'syn_pairs.npy'), self.syn_pairs)
-        os.mkdir(os.path.join(path,'syn_params'))
+        np.save(os.path.join(dname,'syn_pairs.npy'), self.syn_pairs)
+        os.mkdir(os.path.join(dname,'syn_params'))
         for k in self.syn_params.keys():
             self.syn_params[k].to_netcdf(
-                os.path.join(path,'syn_params','{}.nc'.format(k)))
+                os.path.join(dname,'syn_params','{}.nc'.format(k)))
         
        
         stripe_list = []
@@ -318,29 +318,29 @@ class Network(BaseClass):
             stripe_list.append(';'.join(group_list))
         group_distr = '\n'.join(stripe_list)      
         
-        with open(os.path.join(path,'group_distr.txt'), 'w') as f:
+        with open(os.path.join(dname,'group_distr.txt'), 'w') as f:
             f.write(group_distr)
             
-        with open(os.path.join(path,"input.txt"), 'w') as f:
+        with open(os.path.join(dname,"input.txt"), 'w') as f:
             print(self.basics.struct.n_cells_prompt, 
                   self.basics.struct.stripes.n, sep='\n', end='', file=f)
-        # shutil.copyfile('_basics_setup.py', 
-        #                 os.path.join(path,'_basics_setup.py'))
-        
+
         if self.basics.scales is not None:
-           with open(os.path.join(path,'basics_scales.json'), 'w') as f:
+           with open(os.path.join(dname,'basics_scales.json'), 'w') as f:
                json.dump(self.basics.scales, f)
         if self.seed is not None:
-            with open(os.path.join(path, 'seed.txt'), 'w') as f:
+            with open(os.path.join(dname, 'seed.txt'), 'w') as f:
                 f.write(str(self.seed))
                 
            
-    def load(path, alternative_pcells=None, basics_disp=True,
+    def load(dname, alternative_pcells=None, basics_disp=True,
              alternative_basics_setup=None):
         """Load data from previously generated network.
         
         Parameter
         ---------
+        dname: str
+            Name of directory where data will be loaded from.
         alternative_pcells: array_like, optional
             Alternative cell distribution. If not given, the same default
             of basics_setup is used.
@@ -358,23 +358,23 @@ class Network(BaseClass):
             network.
         """
         
-        print('REPORT: Loading Network from {}'.format(path), end='\n\n')
+        print('REPORT: Loading Network from {}'.format(dname), end='\n\n')
         
         refractory_current = xr.open_dataarray(
-            os.path.join(path, 'refractory_current.nc'))
+            os.path.join(dname, 'refractory_current.nc'))
         membr_params = xr.open_dataarray(
-            os.path.join(path, 'membr_params.nc'))
+            os.path.join(dname, 'membr_params.nc'))
         channel = xr.open_dataarray(
-            os.path.join(path, 'syn_params', 'channel.nc'))
+            os.path.join(dname, 'syn_params', 'channel.nc'))
         delay = xr.open_dataarray(
-            os.path.join(path, 'syn_params', 'delay.nc'))
+            os.path.join(dname, 'syn_params', 'delay.nc'))
         spiking = xr.open_dataarray(
-            os.path.join(path, 'syn_params', 'spiking.nc'))
+            os.path.join(dname, 'syn_params', 'spiking.nc'))
         STSP_params = xr.open_dataarray(
-            os.path.join(path, 'syn_params', 'STSP_params.nc'))
-        syn_pairs = np.load(os.path.join(path, 'syn_pairs.npy'))
+            os.path.join(dname, 'syn_params', 'STSP_params.nc'))
+        syn_pairs = np.load(os.path.join(dname, 'syn_pairs.npy'))
             
-        with open(os.path.join(path, 'group_distr.txt'), 'r') as f:
+        with open(os.path.join(dname, 'group_distr.txt'), 'r') as f:
             group_distr_str = f.read()
         
         group_distr = []
@@ -393,23 +393,20 @@ class Network(BaseClass):
         syn_params={'channel': channel, 'spiking': spiking,
                     'STSP_params': STSP_params, 'delay': delay}
         
-        
-        # basics_script = import_module('{}.basics_setup'.format(path))
-        
-        with open(os.path.join(path, 'input.txt'), 'r') as f:
+        with open(os.path.join(dname, 'input.txt'), 'r') as f:
             prompt_str = f.read()
         n_cells_prompted, n_stripes = prompt_str.split('\n')
         n_cells_prompted = int(n_cells_prompted) 
         n_stripes = int(n_stripes)
         
         basics_scales = None
-        if 'basics_scales.json' in os.listdir(path):
-            with open(os.path.join(path, 'basics_scales.json'), 'r') as f:
+        if 'basics_scales.json' in os.listdir(dname):
+            with open(os.path.join(dname, 'basics_scales.json'), 'r') as f:
                 basics_scales = json.load(f)
     
         seed = None
-        if 'seed.txt' in os.listdir(path):
-            with open(os.path.join(path, 'seed.txt'), 'r') as f:
+        if 'seed.txt' in os.listdir(dname):
+            with open(os.path.join(dname, 'seed.txt'), 'r') as f:
                 seed = int(f.read())
         
         if alternative_basics_setup is not None:
@@ -420,11 +417,8 @@ class Network(BaseClass):
             basics = basics_setup(
                 n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
                 basics_disp)
-        # basics = basics_script.basics_setup(
-        #     n_cells_prompted, n_stripes, basics_scales, alternative_pcells,
-        #     basics_disp)
-         
-        print('REPORT: Network loaded from {}'.format(path), end='\n\n')
+
+        print('REPORT: Network loaded from {}'.format(dname), end='\n\n')
         
         return Network(membr_params, refractory_current, syn_params,
                        syn_pairs, group_distr, seed, basics)
@@ -589,31 +583,5 @@ class Network(BaseClass):
             syn_idcs = syn_idcs[np.isin(syn_idcs, ch_isin)]
             
         return syn_idcs
-    
-    
-    
-if __name__ == '__main__':
-    
-    # basics_scales={}
-    # gmax_scales = [(dict(target=group_sets['PC'], 
-    #source=group_sets['PC']), 2)]    
-    # basics_scales['gmax_mean'] = gmax_scales
-    # network = network_setup(1000, 1)
-    # network.save('New6')
-    # network = Network.load('New5')
 
-    # Ntrials = 25
-    # pop1 = np.zeros((Ntrials,2,7))
-    # for trial in range(Ntrials):
-    # alternative_pcells = np.asarray([10, 5, 5, 5, 5, 10, 10,
-    #                                  10, 5, 5, 5, 5, 10, 10])
-    network = network_setup(1000, 1)#, alternative_pcells=alternative_pcells)
-    
-    # group_sets = [[('PC_L23',0), ('IN_CC_L23', 0)],
-    #[('PC_L5',0), ('IN_CC_L5', 0)], [('IN_L_both', 0)], 
-    #[('IN_CL_both')], [('IN_F',0)] ]
-    # network.save('new_test')
-    # network.save('new_5000')
-    # for group in group_sets:
-    pass
     

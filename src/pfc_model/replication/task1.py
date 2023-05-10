@@ -63,7 +63,7 @@ def task1(simulation_dir, seed=None):
                        ('IN_CL_both',0), 
                       ('IN_F',0)], 
                       alias_list = aliases,
-                      file=os.path.join(simulation_dir, 'Reports', 
+                      fname=os.path.join(simulation_dir, 'Reports', 
                                         'Param_description',
                                         'description_membparams.txt'))
     _fig01(cortex, simulation_dir)

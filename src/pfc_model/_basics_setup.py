@@ -1508,17 +1508,3 @@ class _BasicsSetup(BaseClass):
     equations: any
     scalables: any
     scales: any
-
-    
-if __name__ == '__main__':
-   
-    n1=1000
-    n_stripes=1
-
-    membr_param_std = [(dict(group=group_sets['ALL'], 
-                              par=_membpar_names), 0.9)]
-    basics_scales = {'membr_param_std': membr_param_std}
-
-    _basics = basics_setup(n1, n_stripes,
-                            basics_scales=basics_scales, 
-                           disp=False)

@@ -104,6 +104,11 @@ def raster_plot(cortex, tlim=None, figsize=(18,10), s=5, layerpadding=15,
         Whether the raster plot is to be shown and closed. If false,
         it allows the figure to be further edited using pyplot. If
         not given, it defaults to True.
+    newfigure: optional
+        Whether a new Figure object is to be created. If one intends to
+        insert the raster plot in other figure that is already being built
+        (e.g. in subplots), one must pass False. If not given, it defaults
+        to True.
     """
     
     sp_t = cortex.spikemonitor.t_*1000
@@ -165,7 +170,7 @@ def raster_plot(cortex, tlim=None, figsize=(18,10), s=5, layerpadding=15,
 
 
 @time_report()
-def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
+def get_V_stats(cortex, neuron_idcs=None, tlim=None, fname=None):
     """Get statistical measures of V. 
     
     This function also analysis V after extracting pre-spikes periods.
@@ -189,7 +194,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         2-tuple (initial t, final t in ms) indicating window of
         analysis. If not given, the whole recorded period will be
         analysed.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
         
@@ -290,8 +295,8 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         Vstd_extracted.append(np.std(V_extracted))
         V_minus_V_T_mean_extracted.append(np.mean(V_extracted - V_T))
                 
-    if file is not None:
-        with open(file, 'w') as f:
+    if fname is not None:
+        with open(fname, 'w') as f:
             print('V measurements', file=f)
             print('{} cells'.format(len(neuron_idcs)), end='\n\n', file=f)
             print('Mean and standard deviation of V and mean of '
@@ -334,7 +339,7 @@ def get_V_stats(cortex, neuron_idcs=None, tlim=None, file=None):
 
 @time_report('Correlations')
 def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0, 
-                     file=None, display=False, display_interval=10):
+                     fname=None, display=False, display_interval=10):
     """Get populational mean of Pearson ISI correlations.
     
     A summary of results can be saved to a specified file.
@@ -356,7 +361,7 @@ def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0,
     lags: int, float or list[int, float], optional
         Value or list of values of requested lags (in ms). If not given,
         it defaults to 0.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     display: bool, optional
@@ -410,12 +415,12 @@ def get_correlations(cortex, tlim=None,  idcs=None, delta_t=2, lags=0,
     bin_arr = get_binned_spiking_trains(cortex, idcs, tlim, delta_t)
                        
     return ISIcorrelations(
-        bin_arr, delta_t, lags, file, display, display_interval
+        bin_arr, delta_t, lags, fname, display, display_interval
         )
 
 @time_report('original spike trains correlation')
 def get_correlations_from_spike_trains(spike_trains, tlim, idcs=None, 
-                                       delta_t=2, lags=0, file=None, 
+                                       delta_t=2, lags=0, fname=None, 
                                        display=False, display_interval=10):
     """Get populational mean of Pearson ISI correlations.
     
@@ -438,7 +443,7 @@ def get_correlations_from_spike_trains(spike_trains, tlim, idcs=None,
         it defaults to 2.
     lags: int, float or list[int, float], optional
         Value or list of values of requested lags (in ms).
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     display: bool, optional
@@ -485,10 +490,10 @@ def get_correlations_from_spike_trains(spike_trains, tlim, idcs=None,
         
     bin_arr = get_binned_spiking_trains(spike_trains, idcs, tlim, delta_t)
                        
-    return ISIcorrelations(bin_arr, delta_t, lags, file, display, 
+    return ISIcorrelations(bin_arr, delta_t, lags, fname, display, 
                            display_interval)
 
-def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False, 
+def ISIcorrelations(bin_arr, delta_t, lags, fname=None, display=False, 
                     display_interval=10):
     """Get populational mean of Pearson ISI correlations.
     
@@ -505,7 +510,7 @@ def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False,
         it defaults to 2.
     lags: int, float or list[int, float], optional
         Value or list of values of requested lags (in ms).
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     display: bool, optional
@@ -587,10 +592,10 @@ def ISIcorrelations(bin_arr, delta_t, lags, file=None, display=False,
     cross_mean = np.asarray(cross_mean)
     cross_std = np.asarray(cross_std)
     
-    if file is not None:
+    if fname is not None:
         auto_zip = list(zip(lags, auto_mean, auto_std))
         cross_zip = list(zip(lags, cross_mean, cross_std))
-        with open(file, 'w') as f:
+        with open(fname, 'w') as f:
             print('Auto-correlations:', file=f, end='\n\n')
             for lag in auto_zip:
                 print('lag {} ms --> mean: {:.4f},'
@@ -831,7 +836,7 @@ def get_LFP_SPD_from_Itotarray(Itotarray, fs, log=True, sigma=None):
     return frequency, power
     
 
-def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, file=None):
+def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, fname=None):
     """Get statistical measures of ISIs.
     
     A summary of results can be saved to a specified file.
@@ -847,7 +852,7 @@ def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         2-tuple (initial t, final t in ms) indicating window of
         analysis. If not given, the whole recorded period will be
         analysed.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -871,11 +876,11 @@ def get_ISI_stats(cortex, neuron_idcs=None, tlim=None, file=None):
         spike_trains = [train[(train>=t0)&(train<t1)] 
                         for train in spike_trains]
      
-    return ISIstats(spike_trains, file)
+    return ISIstats(spike_trains, fname)
    
  
 def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None, 
-                                    file=None):
+                                    fname=None):
     """Get statistical measures of ISIs.
     
     A summary of results can be saved to a specified file.
@@ -892,7 +897,7 @@ def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None,
         2-tuple (initial t, final t in ms) indicating window of
         analysis. If not given, the whole recorded period will be
         analysed.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
         
@@ -915,10 +920,10 @@ def get_ISI_stats_from_spike_trains(spike_trains, neuron_idcs=None, tlim=None,
         spike_trains = [train[(train>=t0)&(train<t1)] 
                         for train in spike_trains]
         
-    return ISIstats(spike_trains, file)
+    return ISIstats(spike_trains, fname)
 
 
-def ISIstats(spike_trains, file=None):
+def ISIstats(spike_trains, fname=None):
     """Get statistical measures of ISIs.
     
     A summary of results can be saved to a specified file.
@@ -928,7 +933,7 @@ def ISIstats(spike_trains, file=None):
     spike_trains: list[list]
        A list of spike trains. Each spike train represents a different
        neuron and consists of a list with spike instants (in ms).  
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -949,8 +954,8 @@ def ISIstats(spike_trains, file=None):
         ISImean.append(np.mean(ISI))
         ISICV.append(np.std(ISI)/np.mean(ISI))
     
-    if file is not None:
-        with open(file,'w') as f:
+    if fname is not None:
+        with open(fname,'w') as f:
             print('ISI stats\n', file=f)
             print('Cells:', len(ISImean), file=f)
             print('ISImean mean: {:.3f} ms'.format(np.mean(ISImean)), file=f)
@@ -962,7 +967,7 @@ def ISIstats(spike_trains, file=None):
 
 
 
-def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
+def comp_membrparam_rategroup(cortex, rate, groupstripe_list, fname=None):
     """Get comparisons between membrane parameters of neurons with 
     spiking rate less than and greater or equal to a requested rate 
     value. The comparisons are carried through Mann-Whitney's U and 
@@ -978,7 +983,7 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
         Separating rate value (in Hz).
     groupstripe_list: tuple or list
         Information on neurons to be compared (as in cortex.neuron_idcs).
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -988,9 +993,9 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
         Dictionary holding comparison results.
     """
     
-    def save_membrparam_rategroup(param_dict, rate, file):
+    def save_membrparam_rategroup(param_dict, rate, fname):
         
-        with open(file, 'w') as f:
+        with open(fname, 'w') as f:
             for par in param_dict:
                 print(par, file=f, end='\n\n')
 
@@ -1091,15 +1096,15 @@ def comp_membrparam_rategroup(cortex, rate, groupstripe_list, file=None):
                 rheo_less, rheo_geq, alternative='two-sided'
                 )
        
-    if file is not None:
-        save_membrparam_rategroup(param_dict, rate, file)
+    if fname is not None:
+        save_membrparam_rategroup(param_dict, rate, fname)
         
     return param_dict
 
 
 
 def contingency(cortex, rate, target_groupstripe, source_groupstripe, 
-                channel=None, file=None):
+                channel=None, fname=None):
     
     """Get comparisons between connection probabilities based on 
     spiking post-synaptic neuron rate less than and greater or equal 
@@ -1123,7 +1128,7 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
     channels: str, optional
         Name of requested synaptic channel. If not given,
         default to all synapses.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -1133,9 +1138,9 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
         Dictionary holding comparison results.
     """
     
-    def save_contingency(group_dict, rate, file, channel):
+    def save_contingency(group_dict, rate, fname, channel):
         
-        with open(file, 'w') as f:
+        with open(fname, 'w') as f:
             for grouptarget in group_dict:
                 
                 if channel is not None:
@@ -1215,13 +1220,13 @@ def contingency(cortex, rate, target_groupstripe, source_groupstripe,
             group_dict[gsname]['pvalue'] = pvalue
                                 
      
-    if file is not None:
-        save_contingency(group_dict, rate, file, channel)
+    if fname is not None:
+        save_contingency(group_dict, rate, fname, channel)
         
     return group_dict
     
 def comp_synparam_rategroup(cortex, rate, target_groupstripe, 
-                            source_groupstripe, channel=None, file=None):
+                            source_groupstripe, channel=None, fname=None):
     """Get comparisons between synaptic parameters of neurons with 
     post-synaptic spiking rate less than and greater or equal to a 
     requested rate value. The comparisons are carried through 
@@ -1241,7 +1246,7 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
     source_groupstripe: tuple or list
         Information on pre-synaptic (source) neurons (as in 
         cortex.neuron_idcs).
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -1251,8 +1256,8 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
         Dictionary holding comparison results.
     """
     
-    def save_synparam_rategroup(param_dict, rate, file, channel):
-        with open(file, 'w') as f:
+    def save_synparam_rategroup(param_dict, rate, fname, channel):
+        with open(fname, 'w') as f:
         
             for par in param_dict:
 
@@ -1284,8 +1289,7 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
                         mw_star = '**'
                     else:
                         mw_star = '***'
-                    
-        
+                            
                     print('Mann-Whitney U: {:.2f}, p-value: {:.3f}'
                           .format(mw.statistic, mw.pvalue)+mw_star, file=f)
 
@@ -1354,17 +1358,13 @@ def comp_synparam_rategroup(cortex, rate, target_groupstripe,
                         param_dict[par][gsname]['mwtest'] = mwtest(
                             less_params, geq_params, alternative='two-sided'
                             )
-                        # param_dict[par]['ttest'] = ttest(less_params, geq_params)
-                          
-            
-            
 
-    if file is not None:
-        save_synparam_rategroup(param_dict, rate, file, channel)
+    if fname is not None:
+        save_synparam_rategroup(param_dict, rate, fname, channel)
         
     return param_dict
     
-def get_spiking(cortex, rate, groupstripe, file=None):
+def get_spiking(cortex, rate, groupstripe, fname=None):
     """Get fraction of spiking neurons based on a threshold rate
     value.
     
@@ -1378,7 +1378,7 @@ def get_spiking(cortex, rate, groupstripe, file=None):
         Threshold rate value (in Hz).
     groupstripe_list: tuple or list
         Information on neurons to be compared (as in cortex.neuron_idcs).
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -1397,8 +1397,8 @@ def get_spiking(cortex, rate, groupstripe, file=None):
     Pspiking = Nspiking/Ntotal
     Pnotspiking = Nnotspiking/Ntotal
     
-    if file is not None:
-        with open(file, 'w') as f:
+    if fname is not None:
+        with open(fname, 'w') as f:
             print('Group_stripe:', groupstripe, file=f)
             print('Spiking rate: >= {} Hz'.format(rate), file=f)
             print('Total N: {} cells'.format(Ntotal), file=f, end='\n\n')
@@ -1410,7 +1410,7 @@ def get_spiking(cortex, rate, groupstripe, file=None):
     return Pspiking, Pnotspiking
 
 
-def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
+def get_membr_params(cortex, groupstripe_list, alias_list=None, fname=None):
     """Get mean and standard deviation of membrane parameters of
     requestes groups.
     
@@ -1425,7 +1425,7 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
         cortex.neuron_idcs).
     alias_list: list, optional
         Aliases for the groups specified in groupstripe_list.
-    file: str, optional
+    fname: str, optional
         Name of file where the summary of results is to be saved. If
         not given, no summary is created.
     
@@ -1475,8 +1475,8 @@ def get_membr_params(cortex, groupstripe_list, alias_list=None, file=None):
         for gs in range(len(group_dict)):
             alias_dict[list(group_dict.keys())[gs]] = alias_list[gs] 
      
-    if file is not None:
-        with open(file, 'w') as f:
+    if fname is not None:
+        with open(fname, 'w') as f:
             print('Ncells', cortex.network.basics.struct.n_cells,
                   file=f)
             print('pcells:', cortex.network.basics.struct.p_cells_per_group,

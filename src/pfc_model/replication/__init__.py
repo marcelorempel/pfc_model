@@ -1,3 +1,11 @@
+"""
+replication
+=========
+
+A subpackage  of pfc_model. It implements analyzes for replicating
+Hass et al.'s findings.
+"""
+
 from pfc_model import *
 from .task1 import task1
 from .task2 import task2

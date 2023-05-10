@@ -126,29 +126,29 @@ def task3(simulation_dir, Ntrials=100, seed_list=None):
     
         
         get_spiking(cortex, 0.33, ('PC', 0), 
-                    file=os.path.join(simulation_dir, 'Reports', 
-                                      'Spikingcells', 'individuals',
-                                      'spikingPC_seed_{}.txt'.format(seed)))
+                    fname=os.path.join(simulation_dir, 'Reports', 
+                                       'Spikingcells', 'individuals',
+                                       'spikingPC_seed_{}.txt'.format(seed)))
         
         
         get_spiking(cortex, 0.33, ('IN', 0), 
-                    file=os.path.join(simulation_dir, 'Reports', 
-                                      'Spikingcells', 'individuals',
-                                      'spikingIN_seed_{}.txt'.format(seed)))
+                    fname=os.path.join(simulation_dir, 'Reports', 
+                                       'Spikingcells', 'individuals',
+                                       'spikingIN_seed_{}.txt'.format(seed)))
         
         
         get_spiking(cortex, 0.33, ('ALL', 0), 
-                    file=os.path.join(simulation_dir, 'Reports', 
-                                      'Spikingcells', 'individuals',
-                                      'spikingALL_seed_{}.txt'.format(seed)))
+                    fname=os.path.join(simulation_dir, 'Reports', 
+                                       'Spikingcells', 'individuals',
+                                       'spikingALL_seed_{}.txt'.format(seed)))
         
         
         
         membpar_results = comp_membrparam_rategroup(
             cortex, 0.33, [('ALL',0), ('PC', 0), ('IN', 0)], 
-            file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
-                              'individuals',
-                              'membr_params_comparison_seed_{}.txt'.format(seed)))
+            fname=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
+                               'individuals',
+                               'membr_params_comparison_seed_{}.txt'.format(seed)))
         
         cont_results = {}
         synpar_results = {}
@@ -157,16 +157,16 @@ def task3(simulation_dir, Ntrials=100, seed_list=None):
                 cortex, 0.33, 
                 [('ALL',0), ('PC', 0), ('IN', 0)], ('ALL', 0), 
                 channel=channel,
-                file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
+                fname=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
                                   'individuals',
                                   'pcon_contingency_{}_seed_{}.txt'.format(channel, seed)))
             
             synpar_results[channel] = comp_synparam_rategroup(
                 cortex, 0.33, [('ALL',0), ('PC', 0), ('IN', 0)], 
                 ('ALL', 0), channel=channel, 
-                file=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
-                                  'individuals',
-                                  'syn_params_comparison_{}_seed_{}.txt'.format(channel, seed)))
+                fname=os.path.join(simulation_dir, 'Reports', 'Param_comparisons',
+                                   'individuals',
+                                   'syn_params_comparison_{}_seed_{}.txt'.format(channel, seed)))
             
             
         if i == 0:

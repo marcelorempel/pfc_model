@@ -78,7 +78,7 @@ def task4(simulation_dir, seed=None):
     ALL_rk4 = cortex_rk4.neuron_idcs(['ALL',0])
     cortex_rk4.set_longrun_neuron_monitors('I_tot', 'I_tot', ALL_rk4,  5000, 
                                        start=transient, stop=duration_rk4, 
-                                       population_agroupate='sum')
+                                       population_grouping='sum')
     cortex_rk4.set_longrun_neuron_monitors('V', 'V', ALL_rk4,  5000, 
                                            start=transient, stop=duration_rk4)   
     cortex_rk4.run(duration_rk4)
@@ -103,7 +103,7 @@ def task4(simulation_dir, seed=None):
     ALL_rk2 = cortex_rk2.neuron_idcs(['ALL',0])
     cortex_rk2.set_longrun_neuron_monitors('I_tot', 'I_tot', ALL_rk2,  5000, 
                                        start=transient, stop=duration_rk2, 
-                                       population_agroupate='sum')
+                                       population_grouping='sum')
     cortex_rk2.set_longrun_neuron_monitors('V', 'V', ALL_rk2,  5000, 
                                        start=transient, stop=duration_rk2)
 
@@ -140,14 +140,14 @@ def task4(simulation_dir, seed=None):
     (C_lags_rk4, autoC_mean_rk4, autoC_std_rk4, crossC_mean_rk4,
      crossC_std_rk4) = get_correlations(
          cortex_rk4, idcs=spikingALL_rk4, tlim=tlim, delta_t=2, lags=lags_rk4,
-         file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+         fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
                            'Correlations_rk4.txt'), 
          display=True, display_interval=5)
          
     ISImean_rk4, ISICV_rk4 = get_ISI_stats(
         cortex_rk4, neuron_idcs=spikingALL_rk4, tlim=tlim, 
-        file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
-                          'ISIstats_rk4.txt'))
+        fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+                           'ISIstats_rk4.txt'))
     
     
     spikingALL_rk2= cortex_rk2.spiking_idcs((np.greater_equal, 0.33), ('ALL', 0))
@@ -158,14 +158,14 @@ def task4(simulation_dir, seed=None):
     (C_lags_rk2, autoC_mean_rk2, autoC_std_rk2, crossC_mean_rk2, 
      crossC_std) = get_correlations(
          cortex_rk2, idcs=spikingALL_rk2, tlim=tlim, delta_t=2, lags=lags_rk2, 
-         file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+         fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
                            'Correlations_rk2.txt'), 
          display=True, 
          display_interval=5)
     ISImean_rk2, ISICV_rk2 = get_ISI_stats(
         cortex_rk2, neuron_idcs=spikingALL_rk2, tlim=tlim, 
-        file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
-                          'ISIstats_rk2.txt'))
+        fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+                           'ISIstats_rk2.txt'))
     Correlation_sigma_rk2 = 1  
     
     sp_train =[]
@@ -182,16 +182,16 @@ def task4(simulation_dir, seed=None):
         
     ISImean_orig, ISICV_orig = get_ISI_stats_from_spike_trains(
         spike_trains_rk2, tlim=tlim, 
-        file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
-                          'ISIstats_original.txt'))
+        fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+                           'ISIstats_original.txt'))
     
     lags = np.arange(50)
     
     (C_lags_orig, autoC_mean_orig, autoC_std_orig,crossC_mean_orig, 
      crossC_std_orig) = get_correlations_from_spike_trains(
          spike_trains_rk2, tlim=tlim, delta_t=2, lags=lags, 
-         file=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
-                           'Correlations_original.txt'), 
+         fname=os.path.join(simulation_dir, 'Reports', 'ISI_analysis', 
+                            'Correlations_original.txt'), 
          display=True, display_interval=5)  
     
     Correlation_sigma_orig = 1
@@ -255,11 +255,11 @@ def task4(simulation_dir, seed=None):
     
     VstdALL_rk4 = get_V_stats(
         cortex_rk4, ALLnonzero_rk4, 
-        file=os.path.join(simulation_dir, 'Reports', 'Vstats', 
+        fname=os.path.join(simulation_dir, 'Reports', 'Vstats', 
                           'VALLstats_rk4.txt'))[1]
     VstdPC_rk4 =get_V_stats(
         cortex_rk4, PCnonzero_rk4, 
-        file=os.path.join(simulation_dir, 'Reports', 'Vstats',
+        fname=os.path.join(simulation_dir, 'Reports', 'Vstats',
                           'VPCstats_rk4.txt'))[1]
     _fig08(VstdALL_rk4, VstdPC_rk4, simulation_dir)
     # V \\

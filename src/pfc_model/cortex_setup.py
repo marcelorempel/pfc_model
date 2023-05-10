@@ -142,15 +142,15 @@ class Cortex(BaseClass):
     
     @staticmethod
     @time_report('Cortex setup (with network loading)')
-    def load(path, constant_stimuli, method, dt, transient=0, 
+    def load(dname, constant_stimuli, method, dt, transient=0, 
              fluctuant_stimuli=None, cortex_neuron_scales=None,
              cortex_syn_scales=None):
         """Set a model instance from previously saved data.
         
         Parameters
         ----------
-        path: str
-            Path where saved data are to be retrieved from.
+        dname: str
+            Path to directory where saved data are to be retrieved from.
         constant_stimuli: array_like
             Constant background stimuli applied on each group (its length
             must be the number of different groups in each stripe).
@@ -181,17 +181,17 @@ class Cortex(BaseClass):
             Prefrontal cortex model instance.
         """
       
-        network = Network.load(path)
+        network = Network.load(dname)
         seed = network.seed
         
         cortex = __class__(network, constant_stimuli, method, dt, transient, 
                          fluctuant_stimuli, seed, cortex_neuron_scales, 
                          cortex_syn_scales)
         
-        if not os.path.isabs(path):
-            cortex._loadfile = os.path.join(os.getcwd(), path)
+        if not os.path.isabs(dname):
+            cortex._loadfile = os.path.join(os.getcwd(), dname)
         else:
-            cortex._loadfile = path
+            cortex._loadfile = dname
         
 
         cortex.cortex_neuron_scales = cortex_neuron_scales
@@ -201,11 +201,24 @@ class Cortex(BaseClass):
     
     @staticmethod
     @time_report()
-    def repeat_experiment(path, file_name):
+    def repeat_experiment(fname):
+        """Repeat the steps of a previous experiment.
         
-        if '.toml' not in file_name:
-            file_name = file_name + '.toml'
-        toml_dict = toml.load(os.path.join(path, file_name))
+        Parameters
+        ----------
+        fname: str
+            Path to toml file where data from a previous experiment is
+            saved. The extension ".toml" may be omitted in the argument.
+            
+        Returns
+        -------
+        Out: Cortex
+            Prefrontal cortex model instance.
+        """
+        
+        if '.toml' not in os.path.basename(fname):
+            fname = fname + '.toml'
+        toml_dict = toml.load(os.path.join(fname))
         
         dt = toml_dict['setup']['dt']
         method = toml_dict['setup']['method']
@@ -301,22 +314,21 @@ class Cortex(BaseClass):
             start = mon['start'] if 'start' in mon else None 
             stop = mon['stop'] if 'stop' in mon else None 
             interval = mon['interval'] if 'interval' in mon else None
-            population_agroupate = (mon['population_agroupate'] 
-                                    if 'population_agroupate' in mon else None)
+            population_grouping = (mon['population_grouping'] 
+                                    if 'population_grouping' in mon else None)
                 
             if type_ == 'neuron':
-                print()
                 cortex.set_neuron_monitors(monitor, variables, idcs, start, stop)
             elif type_ == 'synapse':
                 cortex.set_synapse_monitors(monitor, variables, idcs, start, stop)
             elif type_ == 'neuron_longrun':
                 cortex.set_longrun_neuron_monitors(monitor, variables, idcs,
                                                  interval, start, stop, 
-                                                 population_agroupate)
+                                                 population_grouping)
             elif type_ == 'synapse_longrun':
                 cortex.set_longrun_synapse_monitors(monitor, variables, idcs,
                                                  interval, start, stop, 
-                                                 population_agroupate)
+                                                 population_grouping)
                 
         for stimulus in toml_dict['external_stimuli']:
             stim = toml_dict['external_stimuli'][stimulus]
@@ -446,21 +458,21 @@ class Cortex(BaseClass):
         
         
     
-    def save(self, path):
+    def save(self, dname):
         """Save cortex data (structure, connectivity and parameters).
         
         Parameter
         ---------
         path: str
-            Path where data will be saved.
+            Path to directory where data will be saved.
         """
         
-        if not os.path.isdir(path):
-            self.network.save(path)
-            if not os.path.isabs(path):
-                self._savefile = os.path.join(os.getcwd(), path)
+        if not os.path.isdir(dname):
+            self.network.save(dname)
+            if not os.path.isabs(dname):
+                self._savefile = os.path.join(os.getcwd(), dname)
             else:
-                self._savefile = path
+                self._savefile = dname
         else:
             print('REPORT: Data could not be saved because directory'
                   ' already exists.', end='\n\n')
@@ -770,7 +782,7 @@ class Cortex(BaseClass):
             'interval': None,
             'start': start,
             'stop': stop,
-            'population_agroupate': None}
+            'population_grouping': None}
         
         
     def set_synapse_monitors(self, name, variables, syn_idcs, 
@@ -809,11 +821,11 @@ class Cortex(BaseClass):
             'interval': None,
             'start': start,
             'stop': stop,
-            'population_agroupate': None}
+            'population_grouping': None}
 
     def set_longrun_neuron_monitors(self, name, variables, neuron_idcs,
                                     interval, start=None, stop=None, 
-                                    population_agroupate=None):
+                                    population_grouping=None):
         """Set monitor of neuron variables for long run simulations.
         The simulation is divided in segments, and monitor data are
         saved to disk and cleaned between them. It is intended to avoid
@@ -839,7 +851,11 @@ class Cortex(BaseClass):
             transient (instance attribute).
         stop: float, optional
             Stop instant (in ms). If not given, monitoring is carried
-            until the end of simulation.       
+            until the end of simulation.
+        population_grouping: str, optional
+            Whether data is to be represented as a single measure (mean or 
+            sum for the whole population). If not given, grouping is
+            not performed.
         """
         if isinstance(variables, str):
             variables = [variables]
@@ -854,7 +870,7 @@ class Cortex(BaseClass):
             
         self._set_longrun_monitors(
             self.neuron_monitors[name], self.longrun_neuron_monitors[name],
-            variables, interval, start, stop, population_agroupate)
+            variables, interval, start, stop, population_grouping)
         self.monitors_info[name] = {
             'type': 'neuron_longrun',
             'variables': variables,
@@ -862,12 +878,12 @@ class Cortex(BaseClass):
             'interval': interval,
             'start': start,
             'stop': stop,
-            'population_agroupate': population_agroupate}
+            'population_grouping': population_grouping}
        
     def set_longrun_synapse_monitors(
             self, name, variables, syn_idcs, 
             interval, start=None, stop=None,
-            population_agroupate=None):
+            population_grouping=None):
         """Set monitor of synaptic  variables for long run simulations.
         The simulation is divided in segments, and monitor data are
         saved to disk and cleaned between them. It is intended to avoid
@@ -893,13 +909,16 @@ class Cortex(BaseClass):
             transient (instance attribute).
         stop: float, optional
             Stop instant (in ms). If not given, monitoring is carried
-            until the end of simulation.       
+            until the end of simulation.
+        population_grouping: str, optional
+            Whether data is to be represented as a single measure (mean or 
+            sum for the whole population). If not given, grouping is
+            not performed.
         """
         
         if isinstance(variables, str):
             variables = [variables]
         
-          
         self.longrun_synapse_monitors[name] =  br2.StateMonitor(
             self.synapses, variables, syn_idcs, dt=self.dt)
         self.longrun_synapse_monitors[name].active = False
@@ -910,7 +929,7 @@ class Cortex(BaseClass):
             
         self._set_longrun_monitors(
             self.synapse_monitors[name], self.longrun_synapse_monitors[name], 
-            variables, interval, start, stop, population_agroupate)
+            variables, interval, start, stop, population_grouping)
         self.monitors_info[name] = {
             'type': 'synapse_longrun',
             'variables': variables,
@@ -918,7 +937,7 @@ class Cortex(BaseClass):
             'interval': interval,
             'start': start,
             'stop': stop,
-            'population_agroupate': population_agroupate}
+            'population_grouping': population_grouping}
         
     def get_memb_params(self, idc):
         """Retrieve membrane parameters as membranetuple.
@@ -1191,18 +1210,23 @@ class Cortex(BaseClass):
         """
         return self.network.rheobase(neuron_idcs)
     
-    def save_experiment(self, path, file_name):
+    def save_experiment(self, fname):
+        """Save experiment info for posterior replication.
+        
+        Parameters
+        ----------
+        fname: str
+            Path to file where data are to be saved.
+        """
         toml_dict = {'setup': {}, 'scales': {}, 'constant_stimuli': {}, 
                      'fluctuant_stimuli': {}, 'external_stimuli': {}, 
                      'monitors': {}, 'simulation':{}}
         
-        if '.toml' not in file_name:
-            file_name = file_name+'.toml'
+        if '.toml' not in os.path.fname:
+            fname = fname+'.toml'
         
-        if os.path.isabs(path):
-            abs_path = path
-        else:
-            abs_path = os.path.join(os.getcwd(), path)
+        if not os.path.isabs(fname):
+            fname = os.path.join(os.getcwd(), fname)
         
         toml_dict['setup']['load_file'] = self._loadfile
         toml_dict['setup']['save_file'] = self._savefile
@@ -1211,14 +1235,6 @@ class Cortex(BaseClass):
         toml_dict['setup']['seed'] = self.seed
         toml_dict['setup']['n_stripes'] = self.network.basics.struct.stripes.n
         toml_dict['setup']['n_cells'] = self.network.basics.struct.n_cells
-        
-        default_pcells = np.asarray(([47. ,  1.55,  1.55,  1.3 ,  1.3 ,  2.6 , 
-                                      2.1 , 38. , 0.25, 0.25, 0.25, 0.25, 1.8 , 
-                                      1.8 ]))
-        
-        # actual_pcells = self.network.basics.struct.p_cells_per_group
-        # if np.max(np.abs(actual_pcells - default_pcells)) > 0:
-        #     toml_dict['extra_setup']['alternative_pcells'] = actual_pcells
         
         toml_dict['setup']['basics_disp'] = self.basics_disp
         toml_dict['setup']['alternative_pcells'] = (
@@ -1280,16 +1296,15 @@ class Cortex(BaseClass):
         if self.fluctuant_stimuli is not None:
             for i in range(len(self.fluctuant_stimuli)):
                 mod_src = os.path.join(*self.fluctuant_stimuli[i][1].split('.'))+'.py'
-                mod_name = os.path.split(mod_src)[-1]
-                print(abs_path)
-                shutil.copyfile(mod_src, os.path.join(abs_path, mod_name))
+                mod_name = os.path.basename(mod_src)
+                shutil.copyfile(mod_src, os.path.join(os.path.dirname(fname), mod_name))
                 
                 
                 toml_dict['fluctuant_stimuli'][str(i)] = {}
                 stim = toml_dict['fluctuant_stimuli'][str(i)] 
                 stim['group'] = self.fluctuant_stimuli[i][0][0]
                 stim['stripe'] = self.fluctuant_stimuli[i][0][1]
-                stim['script'] = os.path.join(abs_path, mod_name)
+                stim['script'] = os.path.join(os.path.dirname(fname), mod_name)
                 stim['function'] = self.fluctuant_stimuli[i][2]
                 stim['start'] = self.fluctuant_stimuli[i][3]
                 stim['stop'] = self.fluctuant_stimuli[i][4]
@@ -1321,12 +1336,11 @@ class Cortex(BaseClass):
             toml_dict['monitors'][mon]['interval'] = info['interval']
             toml_dict['monitors'][mon]['start'] = info['start']
             toml_dict['monitors'][mon]['stop'] = info['stop']
-            toml_dict['monitors'][mon]['population_agroupate'] = info['population_agroupate']
+            toml_dict['monitors'][mon]['population_grouping'] = info['population_grouping']
             
-        with open(os.path.join(path, file_name), 'w') as f:
+        with open(os.path.join(fname), 'w') as f:
             toml.dump(toml_dict, f)
             
-    
     def _get_membrane_events_dict(self):
         membrane_events = {}
         ctx_events = self.network.basics.equations.membr_events
@@ -1413,7 +1427,6 @@ class Cortex(BaseClass):
         
         return gsyn_amp
     
-    
     def _set_syn_channels(self):
         for name in self.network.basics.syn.channels.names:
             setattr(
@@ -1487,17 +1500,20 @@ class Cortex(BaseClass):
             for var in variables:
                 mon_var = (getattr(longrun['longrun_monitor'], var)
                            /unitbr2_dict[name_units[var]])
-                if longrun['population_agroupate'] is not None and var!='t':
-                    if longrun['population_agroupate'] == 'mean':
+                if longrun['population_grouping'] is not None and var!='t':
+                    if longrun['population_grouping'] == 'mean':
                         mon_var = np.mean(mon_var, axis=0)
-                    elif longrun['population_agroupate'] == 'sum':
+                    elif longrun['population_grouping'] == 'sum':
                         mon_var = np.sum(mon_var, axis=0)
           
             
-                with open('longrun/{}_{}_{}.npy'.format(var, i, l),'wb') as f:
+                with open(os.join.path(
+                        'longrun','{}_{}_{}.npy'.format(var, i, l)),'wb') as f:
                     np.save(f, mon_var)
                     longrun['files'][var].append(
-                        'longrun/{}_{}_{}.npy'.format(var, i, l))
+                        os.join.path('longrun',
+                                     '{}_{}_{}.npy'.format(var, i, l)))
+                    
             idc = longrun['longrun_monitor'].record
             v = longrun['longrun_monitor'].record_variables
             source = longrun['longrun_monitor'].source
@@ -1522,7 +1538,7 @@ class Cortex(BaseClass):
                 for file in longrun['files'][var]:                                   
                     longvar.append(np.load(file))  
                 
-                if longrun['population_agroupate'] is not None  or var=='t':
+                if longrun['population_grouping'] is not None  or var=='t':
                     longrun['monitor'][var] = np.concatenate(longvar)
                 else:
                     longrun['monitor'][var] = np.concatenate(longvar, axis=1)
@@ -1686,7 +1702,7 @@ class Cortex(BaseClass):
         self.net.add(monitor)
 
     def _set_longrun_monitors(self, monitor, longrun_monitor, variables, 
-                             interval, start, stop, population_agroupate):
+                             interval, start, stop, population_grouping):
         
         if self.transient>0:
             longrun_monitor.active = False
@@ -1699,7 +1715,7 @@ class Cortex(BaseClass):
         self._longrun_monitor_control.append(
             dict(start=start, stop=stop, interval=interval, 
                  longrun_monitor=longrun_monitor, monitor=monitor, 
-                 population_agroupate=population_agroupate, files={}))
+                 population_grouping=population_grouping, files={}))
     
         self.net.add(longrun_monitor)    
     
@@ -1747,94 +1763,3 @@ class _StimulatorSetup(BaseClass):
         
         return _StimulatorSetup(
             n_source, spike_idcs, spike_times, pairs, channel, gmax, pfail)
-    
-if __name__ == '__main__':
-     
-    
-    from _basics_setup import *
-    seed = 0
-    
-      
-    constant_stimuli = [
-                        [('PC', 0), 250],
-                        [('IN', 0), 200]
-                        ]
-    
-    # basics_scales = {'membr_param_std': [
-    #     (dict(par=list(membranetuple._fields),  group=group_sets['ALL']),
-    #      0.5)]}
-    
-    # cortex=Cortex.setup(n_cells=1000, n_stripes=1, 
-    #                     constant_stimuli=constant_stimuli, method='rk4',
-    #                     dt=0.05,seed=seed,  basics_scales=basics_scales,         
-    #                     )
-    # cortex.save('seed0A')
-  
-    cortex_neuron_scales = {}
-    cortex_syn_scales={}
-    cortex_neuron_scales['b'] = [[('PC_L23', 0), 20],
-                                 [('PC_L5', 0), 10]]    
-    cortex_syn_scales['tau_rec'] = [[('PC_L23', 0),('PC_L5', 0),
-                                        ['AMPA', 'NMDA'], 2]]
-                                   
-    # fluctuant_stimuli = [[('PC_L23', 0), '.'.join(['A', 'G']), 'function', 1500, 2500]]
-    cortex = Cortex.load('seed0', constant_stimuli, 'rk4', 0.05,
-                         cortex_neuron_scales=cortex_neuron_scales,
-                         cortex_syn_scales=cortex_syn_scales)
-    # cortex = Cortex.load('seed0', constant_stimuli, 'rk4', 0.05,
-    #                       fluctuant_stimuli=fluctuant_stimuli)
-    
-    
-    ALL = cortex.neuron_idcs(('ALL', 0))
-    cortex.set_neuron_monitors('I_inj', 'I_inj', ALL)
-    # cortex.set_longrun_neuron_monitors('I_tot', 'I_tot', ALL,  5000, 
-    #                                    start=1000, stop=31000, 
-    #                                    population_agroupate='sum')
-    
-    
-    
-    # PC_L23 = cortex.neuron_idcs(('PC_L23',0))
-    
-    # pCon_reg = 0.2
-    # pulse0, rate0 = (1100, 1105), 50000
-    # pulse1, rate1 = (2100, 2105), 100000
-    # gmax_reg = 0.1
-    # pfail_reg=0
-    # cortex.set_regular_stimuli('regular1', 1, ['AMPA', 'NMDA'], PC_L23, 
-    #                            pcon=pCon_reg, rate=rate0, start=pulse0[0], 
-    #                            stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    
-    
-    # pCon_reg = 0.05
-    # pulse0=(1100, 1200)
-    # pulse1=(2100, 2200)
-    # rate=10
-    # gmax_reg = 2
-    # pfail_reg=0
-    # PC_L23 = cortex.neuron_idcs(('PC_L23',0))
-    # PC_L5 = cortex.neuron_idcs(('PC_L5',0))
-    
-    # cortex.set_regular_stimuli('poisson1', 100, ['AMPA', 'NMDA'], PC_L23,
-    #                            pcon=pCon_reg, rate=rate, start=pulse0[0], 
-    #                            stop=pulse0[1], gmax=gmax_reg, pfail=pfail_reg)
-    
-    # G = import_module('G')
-    # cortex.set_neuron_monitors('I_tot', 'I_tot', ('ALL', 0))
-    # cortex.run(3000)
-    
-    # I = cortex.recorded.I_inj.I_inj/br2.pA
-    # t = cortex.recorded.I_inj.t/br2.ms
-    
-    # import tools
-    # tools.raster_plot(cortex)
-    # cortex = Cortex.load('tutorial-1_3',
-    # constant_stimuli, 'rk4', 0.05, transient=1000)
-    
-    # neuron_idc = cortex.neuron_idcs(('ALL', 0))
-    # cortex.set_longrun_neuron_monitors('V', 'V', neuron_idc, 5000)
-    # syn_idc = cortex.syn_idcs_from_groups(('PC_L23', 0), ('PC_L23', 0)) 
-    # cortex.set_longrun_synapse_monitors('a_syn', 'a_syn', syn_idc[:100], 5000)
-    # cortex.run(2000)
-    
-    
-    pass
